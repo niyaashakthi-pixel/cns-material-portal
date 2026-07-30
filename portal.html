@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>CNS Material Tracker — Admin Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+  :root{ --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
+    --text:#e6e9ef; --muted:#8b93a7; --accent:#3ecf8e; --warn:#f5a623; --danger:#e5484d; --blue:#5b8def; }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);}
+  header{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;}
+  header h1{font-size:17px;margin:0;font-weight:600;}
+  header .sub{color:var(--muted);font-size:12.5px;margin-top:3px;}
+  .rolechip{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(62,207,142,0.15);color:var(--accent);margin-left:8px;text-transform:uppercase;}
+  .rolechip.ops{background:rgba(91,141,239,0.15);color:var(--blue);}
+  .rolechip.viewer{background:rgba(139,147,167,0.18);color:var(--muted);}
+  button{background:var(--accent);color:#04140c;border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;font-size:13px;}
+  button.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border);}
+  button.danger{background:var(--danger);color:#fff;}
+  button:disabled{opacity:0.5;cursor:default;}
+  main{padding:22px 28px 60px;max-width:1340px;margin:0 auto;}
+  section{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px;}
+  section h3{margin:0 0 12px;font-size:14px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  th{color:var(--muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.03em;}
+  tr:last-child td{border-bottom:none;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+  .b-green{background:rgba(62,207,142,0.15);color:var(--accent);}
+  .b-orange{background:rgba(245,166,35,0.15);color:var(--warn);}
+  .b-red{background:rgba(229,72,77,0.15);color:var(--danger);}
+  .b-grey{background:rgba(139,147,167,0.15);color:var(--muted);}
+  .empty{color:var(--muted);font-size:13px;padding:10px 0;}
+  .login{max-width:420px;margin:80px auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:28px;}
+  .login h2{margin-top:0;font-size:16px;}
+  input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);font-size:13px;margin-bottom:10px;}
+  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:18px;}
+  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 18px;}
+  .kpi .label{color:var(--muted);font-size:11px;text-transform:uppercase;margin-bottom:6px;}
+  .kpi .value{font-size:24px;font-weight:700;}
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .chart-card{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+  .chart-card h4{margin:0 0 12px;font-size:13px;color:var(--text);font-weight:600;}
+  .chart-card canvas{max-height:250px;}
+  .chart-card.full{grid-column:1 / -1;}
+  .note{background:#241d0f;border:1px solid #4a3a10;color:#e0b95c;border-radius:10px;padding:10px 14px;font-size:12.5px;margin-bottom:16px;}
+  .itemrow{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-bottom:6px;}
+  #toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--accent);color:var(--text);padding:12px 18px;border-radius:10px;font-size:13px;display:none;z-index:50;}
+  @media (max-width:760px){ .charts{grid-template-columns:1fr;} .grid2{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="login" style="display:none;">
+  <h2>CNS Material Tracker — Staff Sign-in</h2>
+  <p style="color:var(--muted);font-size:13px;">Passwordless sign-in. Enter your staff email and we'll send you a one-time login code.</p>
+  <label>Email</label>
+  <input id="loginEmail" type="email" placeholder="you@company.com" />
+  <button onclick="sendLink()">Send login code</button>
+  <div id="otpBlock" style="display:none;">
+    <label>6-digit code from the email</label>
+    <input id="otpCode" inputmode="numeric" placeholder="123456" />
+    <button onclick="verifyCode()">Verify &amp; sign in</button>
+  </div>
+  <p id="loginMsg" style="color:var(--accent);font-size:12.5px;"></p>
+  <p style="color:var(--muted);font-size:11.5px;">Your email must be registered in the staff list by the Managing Director. Check spam if the email doesn't arrive.</p>
+</div>
+
+<div id="app" style="display:none;">
+<header>
+  <div>
+    <h1>Material Tracker — Admin Portal <span class="rolechip" id="roleChip"></span></h1>
+    <div class="sub" id="whoami"></div>
+  </div>
+  <div>
+    <button class="secondary" onclick="loadAll()">Refresh</button>
+    <button class="secondary" onclick="signOut()">Sign out</button>
+  </div>
+</header>
+
+<main>
+  <div id="viewerNote" class="note" style="display:none;">Read-only analytics access — you can view everything but cannot make changes.</div>
+
+  <div class="grid4" id="kpis"></div>
+
+  <section id="secAnalytics">
+    <h3>Analytics</h3>
+    <div class="charts">
+      <div class="chart-card">
+        <h4>Requested vs Delivered vs Invoiced Qty (by material)</h4>
+        <canvas id="chartQty"></canvas>
+      </div>
+      <div class="chart-card">
+        <h4>Price Trend Over Time (by material)</h4>
+        <canvas id="chartPrice"></canvas>
+      </div>
+      <div class="chart-card">
+        <h4>Spend by Project (invoiced AED)</h4>
+        <canvas id="chartSpend"></canvas>
+      </div>
+      <div class="chart-card">
+        <h4>Supplier Price Volatility (avg unit price)</h4>
+        <canvas id="chartSupplier"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section id="secAlerts">
+    <h3>Open Alerts</h3>
+    <div id="alertsBox"></div>
+  </section>
+
+  <section id="secLockouts">
+    <h3>Lockout Timers (72h invoice deadline)</h3>
+    <div id="lockoutsBox"></div>
+  </section>
+
+  <section id="secLockedUsers" style="display:none;">
+    <h3>Locked Managers (MD override)</h3>
+    <div id="lockedUsersBox"></div>
+  </section>
+
+  <section id="secRequests">
+    <h3>Material Requests</h3>
+    <div id="requestsBox"></div>
+  </section>
+
+  <section id="secProjects">
+    <h3>Projects</h3>
+    <div id="projectsBox"></div>
+  </section>
+
+  <section id="secInvoice" style="display:none;">
+    <h3>Submit Invoice (Ops Manager)</h3>
+    <div class="grid2">
+      <div>
+        <label>Material request</label>
+        <select id="invRequest"></select>
+        <label>Supplier (type a new name to create it)</label>
+        <input id="invSupplier" list="supplierList" placeholder="Supplier name" />
+        <datalist id="supplierList"></datalist>
+        <label>Receipt reference / file path</label>
+        <input id="invReceipt" placeholder="receipts/xxx.pdf" />
+      </div>
+      <div>
+        <label>Line items</label>
+        <div id="invItems"></div>
+        <button class="secondary" onclick="addInvItem()">+ Add line</button>
+        <div style="margin-top:10px;font-size:13px;">Total: <b id="invTotal">0.00</b> AED</div>
+        <button style="margin-top:10px;" onclick="submitInvoice()">Submit invoice</button>
+        <p id="invMsg" style="font-size:12.5px;color:var(--accent);"></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="secAlaan" style="display:none;">
+    <h3>Record ALAAN Funding (Ops Manager)</h3>
+    <div class="grid2">
+      <div>
+        <label>Material request</label>
+        <select id="alaanRequest"></select>
+      </div>
+      <div>
+        <label>Amount disbursed (AED)</label>
+        <input id="alaanAmount" type="number" step="0.01" placeholder="0.00" />
+        <button onclick="submitAlaan()">Record funding</button>
+        <p id="alaanMsg" style="font-size:12.5px;color:var(--accent);"></p>
+      </div>
+    </div>
+  </section>
+</main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPA_URL = 'https://scjtiuztvohagvmwgntn.supabase.co';
+const SUPA_KEY = 'sb_publishable_HQ_cM4QKr4D7MNZTseNwbg_j9MmNK8L';
+const db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+let ME = null;        // {full_name, role, email, id}
+let CACHE = {};
+let charts = {};
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3500);
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return dt.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' ' + dt.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function sendLink() {
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) return;
+  const { error } = await db.auth.signInWithOtp({ email });
+  if (error) { document.getElementById('loginMsg').textContent = 'Error: ' + error.message; return; }
+  document.getElementById('otpBlock').style.display = 'block';
+  document.getElementById('loginMsg').textContent = 'Email sent — enter the 6-digit code from it below (works even if the link in the email does not).';
+}
+async function verifyCode() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const token = document.getElementById('otpCode').value.trim();
+  if (!email || !token) return;
+  const { error } = await db.auth.verifyOtp({ email, token, type: 'email' });
+  if (error) { document.getElementById('loginMsg').textContent = 'Error: ' + error.message; return; }
+  location.reload();
+}
+async function signOut(){ await db.auth.signOut(); location.reload(); }
+
+async function boot() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) {
+    document.getElementById('loginScreen').style.display = 'block';
+    db.auth.onAuthStateChange((_e, s) => { if (s) location.reload(); });
+    return;
+  }
+  const email = session.user.email;
+  const { data: me, error } = await db.from('users').select('*').eq('email', email).maybeSingle();
+  if (error || !me) {
+    document.getElementById('loginScreen').style.display = 'block';
+    document.getElementById('loginMsg').textContent = 'Signed in as ' + email + ' but this email is not in the staff list. Ask the MD to register it.';
+    return;
+  }
+  ME = me;
+  document.getElementById('app').style.display = 'block';
+  const chip = document.getElementById('roleChip');
+  chip.textContent = me.role.replace('_',' ');
+  chip.className = 'rolechip' + (me.role === 'ops_manager' ? ' ops' : me.role === 'viewer' ? ' viewer' : '');
+  document.getElementById('whoami').textContent = me.full_name + ' · ' + email;
+  const isAdmin = me.role === 'master_admin';
+  const isOps = me.role === 'ops_manager';
+  const isViewer = me.role === 'viewer';
+  document.getElementById('secLockedUsers').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('secInvoice').style.display = (isOps || isAdmin) ? 'block' : 'none';
+  document.getElementById('secAlaan').style.display = (isOps || isAdmin) ? 'block' : 'none';
+  document.getElementById('viewerNote').style.display = isViewer ? 'block' : 'none';
+  loadAll();
+}
+
+async function loadAll() {
+  const [projects, requests, alerts, lockouts, suppliers, materials, petty,
+         requestItems, deliveryItems, invoiceItems, invoices, priceHistory] = await Promise.all([
+    db.from('projects').select('*'),
+    db.from('material_requests').select('*').order('created_at',{ascending:false}).limit(30),
+    db.from('alerts').select('*').eq('resolved', false).order('created_at',{ascending:false}),
+    db.from('lockout_timers').select('*').order('deadline_at',{ascending:true}).limit(20),
+    db.from('suppliers').select('*'),
+    db.from('materials').select('*'),
+    db.from('petty_cash_ledger').select('*').order('created_at',{ascending:false}).limit(1),
+    db.from('request_items').select('*'),
+    db.from('delivery_items').select('*'),
+    db.from('invoice_items').select('*'),
+    db.from('invoices').select('*'),
+    db.from('price_history').select('*').order('recorded_at',{ascending:true})
+  ]);
+  CACHE = {
+    projects: projects.data||[], requests: requests.data||[], suppliers: suppliers.data||[],
+    materials: materials.data||[], requestItems: requestItems.data||[], deliveryItems: deliveryItems.data||[],
+    invoiceItems: invoiceItems.data||[], invoices: invoices.data||[], priceHistory: priceHistory.data||[]
+  };
+  renderKpis(CACHE.projects, CACHE.requests, alerts.data||[], petty.data||[]);
+  renderAlerts(alerts.data||[]);
+  renderLockouts(lockouts.data||[]);
+  renderRequests();
+  renderProjects(CACHE.projects);
+  renderQtyChart();
+  renderPriceChart();
+  renderSpendChart();
+  renderSupplierChart();
+  fillForms();
+  if (ME.role === 'master_admin') loadLockedUsers();
+}
+
+function renderKpis(projects, requests, alerts, petty) {
+  const open = requests.filter(r=>!['closed','invoiced'].includes(r.status)).length;
+  const bal = petty[0] ? Number(petty[0].balance_after).toFixed(2) : '—';
+  document.getElementById('kpis').innerHTML =
+    '<div class="kpi"><div class="label">Active projects</div><div class="value">'+projects.filter(p=>p.status==='active').length+'</div></div>'+
+    '<div class="kpi"><div class="label">Open requests</div><div class="value">'+open+'</div></div>'+
+    '<div class="kpi"><div class="label">Open alerts</div><div class="value" style="color:'+(alerts.length? 'var(--danger)':'inherit')+'">'+alerts.length+'</div></div>'+
+    '<div class="kpi"><div class="label">Petty cash (AED)</div><div class="value">'+bal+'</div></div>';
+}
+
+// ---------- charts ----------
+function destroyChart(canvasId){ const c = Chart.getChart(canvasId); if (c) c.destroy(); }
+function chartOpts(empty){
+  return { responsive:true, plugins:{ legend:{ labels:{ color:'#e6e9ef', boxWidth:12, font:{size:11} } } },
+    scales: empty ? {} : { x:{ ticks:{ color:'#8b93a7' }, grid:{ color:'#2a2f3a' } }, y:{ ticks:{ color:'#8b93a7' }, grid:{ color:'#2a2f3a' } } } };
+}
+function matName(id){ return (CACHE.materials.find(m=>m.id===id)||{}).canonical_name || 'Unknown'; }
+function projName(id){ const p = CACHE.projects.find(p=>p.id===id)||{}; return p.name || p.code || '—'; }
+
+function renderQtyChart() {
+  const byMat = {};
+  CACHE.requestItems.forEach(ri => {
+    const name = ri.material_id ? matName(ri.material_id) : (ri.raw_name || 'Unmatched');
+    (byMat[name] = byMat[name] || {requested:0,delivered:0,invoiced:0}).requested += Number(ri.requested_qty||0);
+  });
+  const reqById = {}; CACHE.requestItems.forEach(ri => reqById[ri.id]=ri);
+  CACHE.deliveryItems.forEach(di => {
+    const ri = reqById[di.request_item_id]; if(!ri) return;
+    const name = ri.material_id ? matName(ri.material_id) : (ri.raw_name || 'Unmatched');
+    (byMat[name] = byMat[name] || {requested:0,delivered:0,invoiced:0}).delivered += Number(di.received_qty||0);
+  });
+  CACHE.invoiceItems.forEach(ii => {
+    const name = matName(ii.material_id);
+    (byMat[name] = byMat[name] || {requested:0,delivered:0,invoiced:0}).invoiced += Number(ii.qty||0);
+  });
+  const labels = Object.keys(byMat).slice(0,12);
+  destroyChart('chartQty');
+  charts.qty = new Chart(document.getElementById('chartQty'), {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'Requested', data:labels.map(l=>byMat[l].requested), backgroundColor:'#3ecf8e' },
+      { label:'Delivered', data:labels.map(l=>byMat[l].delivered), backgroundColor:'#5b8def' },
+      { label:'Invoiced', data:labels.map(l=>byMat[l].invoiced), backgroundColor:'#f5a623' } ] },
+    options: chartOpts(labels.length===0)
+  });
+}
+
+function renderPriceChart() {
+  const byMat = {};
+  CACHE.priceHistory.forEach(p => {
+    const name = matName(p.material_id);
+    (byMat[name] = byMat[name] || []).push({ x:p.recorded_at, y:Number(p.unit_price_aed) });
+  });
+  const palette = ['#3ecf8e','#5b8def','#f5a623','#e5484d','#c084fc','#22d3ee'];
+  const datasets = Object.keys(byMat).slice(0,6).map((name,i)=>({ label:name, data:byMat[name], borderColor:palette[i%palette.length], backgroundColor:'transparent', tension:0.25 }));
+  destroyChart('chartPrice');
+  charts.price = new Chart(document.getElementById('chartPrice'), {
+    type:'line', data:{ datasets },
+    options:{ ...chartOpts(datasets.length===0),
+      scales:{ x:{ type:'time', time:{ unit:'day' }, ticks:{ color:'#8b93a7' }, grid:{ color:'#2a2f3a' } },
+               y:{ ticks:{ color:'#8b93a7' }, grid:{ color:'#2a2f3a' } } } }
+  });
+}
+
+function renderSpendChart() {
+  // invoiced spend per project: invoice -> request -> project
+  const reqById = {}; CACHE.requests.forEach(r=>reqById[r.id]=r);
+  const invById = {}; CACHE.invoices.forEach(iv=>invById[iv.id]=iv);
+  const byProj = {};
+  CACHE.invoiceItems.forEach(ii => {
+    const inv = invById[ii.invoice_id]; if(!inv) return;
+    const req = reqById[inv.request_id]; if(!req) return;
+    const name = projName(req.project_id);
+    byProj[name] = (byProj[name]||0) + Number(ii.qty||0)*Number(ii.unit_price_aed||0);
+  });
+  const labels = Object.keys(byProj);
+  destroyChart('chartSpend');
+  charts.spend = new Chart(document.getElementById('chartSpend'), {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Invoiced spend (AED)', data:labels.map(l=>byProj[l].toFixed(2)), backgroundColor:'#3ecf8e' }] },
+    options: chartOpts(labels.length===0)
+  });
+}
+
+function renderSupplierChart() {
+  const supName = id => (CACHE.suppliers.find(s=>s.id===id)||{}).name || 'Unknown';
+  const bySup = {};
+  CACHE.priceHistory.forEach(p => { const n = supName(p.supplier_id); (bySup[n]=bySup[n]||[]).push(Number(p.unit_price_aed)); });
+  const labels = Object.keys(bySup);
+  const avgs = labels.map(l => bySup[l].reduce((a,b)=>a+b,0)/bySup[l].length);
+  destroyChart('chartSupplier');
+  charts.supplier = new Chart(document.getElementById('chartSupplier'), {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Avg unit price (AED)', data:avgs, backgroundColor:'#c084fc' }] },
+    options:{ ...chartOpts(labels.length===0), indexAxis:'y' }
+  });
+}
+
+// ---------- tables ----------
+function renderAlerts(alerts) {
+  const el = document.getElementById('alertsBox');
+  if (!alerts.length) { el.innerHTML = '<div class="empty">No open alerts.</div>'; return; }
+  const canResolve = ME.role === 'master_admin';
+  el.innerHTML = '<table><thead><tr><th>Type</th><th>Sev</th><th>Details</th><th>Raised</th>'+(canResolve?'<th></th>':'')+'</tr></thead><tbody>'+
+    alerts.map(a => '<tr><td>'+esc(a.type)+'</td><td>'+'●'.repeat(a.severity)+'</td><td style="font-size:12px;color:var(--muted)">'+esc(JSON.stringify(a.payload))+'</td><td>'+fmtDate(a.created_at)+'</td>'+
+      (canResolve? '<td><button class="secondary" onclick="resolveAlert(\''+a.id+'\')">Resolve</button></td>':'')+'</tr>').join('')+'</tbody></table>';
+}
+async function resolveAlert(id) {
+  const { error } = await db.from('alerts').update({ resolved: true, resolved_by: ME.id }).eq('id', id);
+  toast(error ? 'Failed: '+error.message : 'Alert resolved'); if (!error) loadAll();
+}
+
+function renderLockouts(rows) {
+  const el = document.getElementById('lockoutsBox');
+  if (!rows.length) { el.innerHTML = '<div class="empty">No lockout timers.</div>'; return; }
+  const canOverride = ME.role === 'master_admin';
+  const stateOf = t => t.satisfied_at ? '<span class="badge b-green">satisfied</span>'
+    : t.locked ? '<span class="badge b-red">LOCKED</span>'
+    : (new Date(t.deadline_at) < new Date() ? '<span class="badge b-red">expired</span>' : '<span class="badge b-orange">counting down</span>');
+  el.innerHTML = '<table><thead><tr><th>Deadline</th><th>Status</th><th>D1</th><th>D2</th>'+(canOverride?'<th></th>':'')+'</tr></thead><tbody>'+
+    rows.map(t => '<tr><td>'+fmtDate(t.deadline_at)+'</td><td>'+stateOf(t)+'</td><td>'+(t.day1_reminder_sent?'✓':'—')+'</td><td>'+(t.day2_reminder_sent?'✓':'—')+'</td>'+
+      (canOverride && t.locked && !t.overridden_at ? '<td><button class="secondary" onclick="overrideLockout(\''+t.id+'\',\''+t.manager_id+'\')">Override</button></td>' : (canOverride?'<td></td>':''))+'</tr>').join('')+'</tbody></table>';
+}
+async function overrideLockout(timerId, managerId) {
+  const e1 = (await db.from('lockout_timers').update({ overridden_by: ME.id, overridden_at: new Date().toISOString() }).eq('id', timerId)).error;
+  const e2 = (await db.from('users').update({ is_locked: false, locked_at: null }).eq('id', managerId)).error;
+  toast(e1||e2 ? 'Failed: '+((e1||e2).message) : 'Lockout overridden, manager unlocked'); if (!e1 && !e2) loadAll();
+}
+
+async function loadLockedUsers() {
+  const { data } = await db.from('users').select('id, full_name, role, is_locked, locked_at').eq('is_locked', true);
+  const el = document.getElementById('lockedUsersBox');
+  if (!data || !data.length) { el.innerHTML = '<div class="empty">Nobody is locked.</div>'; return; }
+  el.innerHTML = '<table><thead><tr><th>Name</th><th>Role</th><th>Locked at</th><th></th></tr></thead><tbody>'+
+    data.map(u => '<tr><td>'+esc(u.full_name)+'</td><td>'+esc(u.role)+'</td><td>'+fmtDate(u.locked_at)+'</td><td><button class="secondary" onclick="unlockUser(\''+u.id+'\')">Unlock</button></td></tr>').join('')+'</tbody></table>';
+}
+async function unlockUser(id) {
+  const { error } = await db.from('users').update({ is_locked: false, locked_at: null }).eq('id', id);
+  toast(error ? 'Failed: '+error.message : 'Manager unlocked'); if (!error) loadAll();
+}
+
+function renderRequests() {
+  const el = document.getElementById('requestsBox');
+  const badge = s => ({awaiting_file:'b-orange',parsing:'b-orange',delivery_started:'b-orange',parse_failed:'b-red',on_hold:'b-red',delivered:'b-green',closed:'b-green',invoiced:'b-grey',parsed:'b-grey'})[s]||'b-grey';
+  if (!CACHE.requests.length) { el.innerHTML = '<div class="empty">No requests.</div>'; return; }
+  el.innerHTML = '<table><thead><tr><th>Project</th><th>Status</th><th>Created</th></tr></thead><tbody>'+
+    CACHE.requests.map(r => '<tr><td>'+esc(projName(r.project_id))+'</td><td><span class="badge '+badge(r.status)+'">'+r.status.replace(/_/g,' ')+'</span></td><td>'+fmtDate(r.created_at)+'</td></tr>').join('')+'</tbody></table>';
+}
+
+function renderProjects(projects) {
+  const el = document.getElementById('projectsBox');
+  if (!projects.length) { el.innerHTML = '<div class="empty">No projects.</div>'; return; }
+  const badge = s => ({active:'b-green',closed:'b-grey',on_hold:'b-orange'})[s]||'b-grey';
+  el.innerHTML = '<table><thead><tr><th>Name</th><th>Code</th><th>Status</th></tr></thead><tbody>'+
+    projects.map(p => '<tr><td>'+esc(p.name)+'</td><td>'+esc(p.code)+'</td><td><span class="badge '+badge(p.status)+'">'+String(p.status).replace(/_/g,' ')+'</span></td></tr>').join('')+'</tbody></table>';
+}
+
+// ---------- invoice + ALAAN forms (ops/admin only) ----------
+function fillForms() {
+  if (!(ME.role === 'ops_manager' || ME.role === 'master_admin')) return;
+  const eligible = CACHE.requests.filter(r => ['delivered','delivery_started','parsed'].includes(r.status));
+  const opts = eligible.map(r => '<option value="'+r.id+'">'+esc(projName(r.project_id))+' · '+r.status+' · '+fmtDate(r.created_at)+'</option>').join('');
+  document.getElementById('invRequest').innerHTML = opts || '<option value="">(no eligible requests)</option>';
+  document.getElementById('alaanRequest').innerHTML = CACHE.requests.map(r => '<option value="'+r.id+'">'+esc(projName(r.project_id))+' · '+r.status+'</option>').join('');
+  document.getElementById('supplierList').innerHTML = CACHE.suppliers.map(s => '<option value="'+esc(s.name)+'">').join('');
+  if (!document.querySelector('#invItems .itemrow')) addInvItem();
+}
+function addInvItem() {
+  const div = document.createElement('div');
+  div.className = 'itemrow';
+  div.innerHTML = '<input list="materialList" placeholder="material name" class="it-name" />'+
+    '<input type="number" step="0.01" placeholder="qty" class="it-qty" oninput="calcTotal()" />'+
+    '<input type="number" step="0.01" placeholder="unit AED" class="it-price" oninput="calcTotal()" />'+
+    '<button class="secondary" onclick="this.parentNode.remove();calcTotal()">×</button>';
+  document.getElementById('invItems').appendChild(div);
+  if (!document.getElementById('materialList')) {
+    const dl = document.createElement('datalist'); dl.id = 'materialList'; document.body.appendChild(dl);
+  }
+  document.getElementById('materialList').innerHTML = CACHE.materials.map(m => '<option value="'+esc(m.canonical_name)+'">').join('');
+}
+function calcTotal() {
+  let t = 0;
+  document.querySelectorAll('#invItems .itemrow').forEach(r => {
+    t += (Number(r.querySelector('.it-qty').value)||0) * (Number(r.querySelector('.it-price').value)||0);
+  });
+  document.getElementById('invTotal').textContent = t.toFixed(2);
+  return t;
+}
+async function submitInvoice() {
+  const msg = document.getElementById('invMsg');
+  try {
+    const reqId = document.getElementById('invRequest').value;
+    if (!reqId) throw new Error('pick a request');
+    const supName = document.getElementById('invSupplier').value.trim();
+    if (!supName) throw new Error('supplier name required');
+    let sup = CACHE.suppliers.find(s => s.name.toLowerCase() === supName.toLowerCase());
+    if (!sup) {
+      const r = await db.from('suppliers').insert({ name: supName }).select().single();
+      if (r.error) throw r.error; sup = r.data;
+    }
+    const lines = [];
+    for (const row of document.querySelectorAll('#invItems .itemrow')) {
+      const name = row.querySelector('.it-name').value.trim().toLowerCase();
+      const qty = Number(row.querySelector('.it-qty').value);
+      const price = Number(row.querySelector('.it-price').value);
+      if (!name || !qty || !price) continue;
+      let mat = CACHE.materials.find(m => m.canonical_name === name);
+      if (!mat) {
+        const r = await db.from('materials').insert({ canonical_name: name }).select().single();
+        if (r.error) throw r.error; mat = r.data;
+      }
+      lines.push({ material_id: mat.id, qty, unit_price_aed: price });
+    }
+    if (!lines.length) throw new Error('add at least one complete line');
+    const total = calcTotal();
+    const inv = await db.from('invoices').insert({
+      request_id: reqId, supplier_id: sup.id, submitted_by: ME.id,
+      receipt_file_path: document.getElementById('invReceipt').value.trim() || 'receipts/pending.pdf',
+      total_amount_aed: total
+    }).select().single();
+    if (inv.error) throw inv.error;
+    const items = await db.from('invoice_items').insert(lines.map(l => ({ ...l, invoice_id: inv.data.id })));
+    if (items.error) throw items.error;
+    msg.textContent = 'Invoice submitted ✓ (price audit + petty cash ran automatically)';
+    toast('Invoice submitted'); loadAll();
+  } catch (e) { msg.textContent = 'Error: ' + (e.message || e); }
+}
+async function submitAlaan() {
+  const msg = document.getElementById('alaanMsg');
+  const reqId = document.getElementById('alaanRequest').value;
+  const amt = Number(document.getElementById('alaanAmount').value);
+  if (!reqId || !amt) { msg.textContent = 'Pick a request and enter an amount.'; return; }
+  const { error } = await db.from('alaan_funding').insert({ request_id: reqId, amount_aed: amt, entered_by: ME.id });
+  msg.textContent = error ? 'Error: ' + error.message : 'Funding recorded ✓';
+  if (!error) { toast('ALAAN funding recorded'); loadAll(); }
+}
+
+boot();
+</script>
+</body>
+</html>
