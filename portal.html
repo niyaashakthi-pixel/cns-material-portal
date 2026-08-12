@@ -177,28 +177,49 @@ function fmtDate(d) {
 }
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
+// Always send people back to THIS page (portal.html), never the repo root.
+// This value must also be listed in Supabase → Auth → URL Configuration → Redirect URLs.
+const REDIRECT_TO = location.origin + location.pathname;
+
 async function sendLink() {
   const email = document.getElementById('loginEmail').value.trim();
   if (!email) return;
-  const { error } = await db.auth.signInWithOtp({ email });
-  if (error) { document.getElementById('loginMsg').textContent = 'Error: ' + error.message; return; }
+  const { error } = await db.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: REDIRECT_TO }
+  });
+  if (error) { document.getElementById('loginMsg').textContent = 'Error: ' + (error.message || JSON.stringify(error)); return; }
   document.getElementById('otpBlock').style.display = 'block';
-  document.getElementById('loginMsg').textContent = 'Email sent — enter the 6-digit code from it below (works even if the link in the email does not).';
+  document.getElementById('loginMsg').textContent = 'Email sent — click the link in it, or paste the 6-digit code below if the email shows one.';
 }
 async function verifyCode() {
   const email = document.getElementById('loginEmail').value.trim();
   const token = document.getElementById('otpCode').value.trim();
   if (!email || !token) return;
-  const { error } = await db.auth.verifyOtp({ email, token, type: 'email' });
-  if (error) { document.getElementById('loginMsg').textContent = 'Error: ' + error.message; return; }
+  let { error } = await db.auth.verifyOtp({ email, token, type: 'email' });
+  if (error) {
+    // Older//alternate link flow issues a magiclink-type token; try that before failing.
+    ({ error } = await db.auth.verifyOtp({ email, token, type: 'magiclink' }));
+  }
+  if (error) { document.getElementById('loginMsg').textContent = 'Error: ' + (error.message || JSON.stringify(error)); return; }
   location.reload();
 }
 async function signOut(){ await db.auth.signOut(); location.reload(); }
+
+// Surface auth errors that Supabase returns in the URL fragment (expired/invalid link)
+function authUrlError() {
+  const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const q = new URLSearchParams(location.search);
+  const desc = h.get('error_description') || q.get('error_description');
+  return desc ? decodeURIComponent(desc.replace(/\+/g, ' ')) : null;
+}
 
 async function boot() {
   const { data: { session } } = await db.auth.getSession();
   if (!session) {
     document.getElementById('loginScreen').style.display = 'block';
+    const urlErr = authUrlError();
+    if (urlErr) document.getElementById('loginMsg').textContent = 'Sign-in link problem: ' + urlErr + ' — request a new one below.';
     db.auth.onAuthStateChange((_e, s) => { if (s) location.reload(); });
     return;
   }
