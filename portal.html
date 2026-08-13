@@ -244,16 +244,17 @@ async function boot() {
 }
 
 async function loadAll() {
-  const [projects, requests, alerts, lockouts, suppliers, materials, petty] = await Promise.all([
+  const [projects, requests, alerts, lockouts, suppliers, materials, petty, items] = await Promise.all([
     db.from('projects').select('*'),
     db.from('material_requests').select('*').order('created_at',{ascending:false}).limit(30),
     db.from('alerts').select('*').eq('resolved', false).order('created_at',{ascending:false}),
     db.from('lockout_timers').select('*').order('deadline_at',{ascending:true}).limit(20),
     db.from('suppliers').select('*'),
     db.from('materials').select('*'),
-    db.from('petty_cash_ledger').select('*').order('created_at',{ascending:false}).limit(1)
+    db.from('petty_cash_ledger').select('*').order('created_at',{ascending:false}).limit(1),
+    db.from('request_items').select('*').order('line_no',{ascending:true})
   ]);
-  CACHE = { projects: projects.data||[], requests: requests.data||[], suppliers: suppliers.data||[], materials: materials.data||[] };
+  CACHE = { projects: projects.data||[], requests: requests.data||[], suppliers: suppliers.data||[], materials: materials.data||[], items: items.data||[] };
   renderKpis(CACHE.projects, CACHE.requests, alerts.data||[], petty.data||[]);
   renderAlerts(alerts.data||[]);
   renderLockouts(lockouts.data||[]);
@@ -344,8 +345,40 @@ function renderRequests() {
   const pn = id => (CACHE.projects.find(p=>p.id===id)||{}).name || '—';
   const badge = s => ({awaiting_file:'b-orange',parsing:'b-orange',delivery_started:'b-orange',parse_failed:'b-red',on_hold:'b-red',delivered:'b-green',closed:'b-green',invoiced:'b-grey',parsed:'b-grey'})[s]||'b-grey';
   if (!CACHE.requests.length) { el.innerHTML = '<div class="empty">No requests.</div>'; return; }
-  el.innerHTML = '<table><thead><tr><th>Project</th><th>Status</th><th>Created</th></tr></thead><tbody>'+
-    CACHE.requests.map(r => '<tr><td>'+esc(pn(r.project_id))+'</td><td><span class="badge '+badge(r.status)+'">'+r.status.replace(/_/g,' ')+'</span></td><td>'+fmtDate(r.created_at)+'</td></tr>').join('')+'</tbody></table>';
+  const items = CACHE.items || [];
+  const money = v => (v===null||v===undefined||v==='') ? '—' : Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  const qty   = v => (v===null||v===undefined||v==='') ? '—' : Number(v).toLocaleString();
+
+  el.innerHTML = '<table><thead><tr><th>Project</th><th>Status</th><th>Items</th><th>Expected (AED)</th><th>Created</th><th></th></tr></thead><tbody>'+
+    CACHE.requests.map(r => {
+      const mine  = items.filter(i => i.request_id === r.id);
+      const total = mine.reduce((s,i) => s + (Number(i.expected_amount_aed)||0), 0);
+      const head =
+        '<tr><td>'+esc(pn(r.project_id))+'</td>'+
+        '<td><span class="badge '+badge(r.status)+'">'+r.status.replace(/_/g,' ')+'</span></td>'+
+        '<td>'+(mine.length || '—')+'</td>'+
+        '<td>'+(mine.length ? money(total) : '—')+'</td>'+
+        '<td>'+fmtDate(r.created_at)+'</td>'+
+        '<td>'+(mine.length ? '<button class="secondary" onclick="toggleItems(\''+r.id+'\')">View items</button>' : '')+'</td></tr>';
+      if (!mine.length) return head;
+      const rows = mine.map(i =>
+        '<tr><td>'+(i.line_no==null?'—':i.line_no)+'</td><td>'+esc(i.raw_name)+'</td><td>'+qty(i.requested_qty)+'</td>'+
+        '<td>'+esc(i.unit||'')+'</td><td>'+money(i.expected_amount_aed)+'</td></tr>').join('');
+      const detail =
+        '<tr id="items-'+r.id+'" style="display:none;"><td colspan="6" style="padding:0 0 14px 0;">'+
+          '<table style="margin:0;"><thead><tr><th>#</th><th>Material</th><th>Qty</th><th>Unit</th><th>Expected (AED)</th></tr></thead>'+
+          '<tbody>'+rows+'</tbody>'+
+          '<tfoot><tr><td colspan="4" style="text-align:right;font-weight:600;">Total</td>'+
+          '<td style="font-weight:600;">'+money(total)+'</td></tr></tfoot></table>'+
+        '</td></tr>';
+      return head + detail;
+    }).join('')+'</tbody></table>';
+}
+
+function toggleItems(id) {
+  const row = document.getElementById('items-'+id);
+  if (!row) return;
+  row.style.display = (row.style.display === 'none') ? 'table-row' : 'none';
 }
 
 // ---------- invoice + ALAAN forms ----------
