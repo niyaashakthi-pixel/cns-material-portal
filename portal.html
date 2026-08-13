@@ -204,6 +204,19 @@
     </div>
   </section>
 
+  <section id="secLeaks">
+    <h3>Where money is leaking</h3>
+    <p class="sectionsub">Four things that quietly cost money on material orders. Each figure is money already spent or committed — click a row to see exactly which request it came from.</p>
+    <div class="kpis" id="leakCards"></div>
+    <div id="leakDetail"></div>
+  </section>
+
+  <section id="secSuppliers">
+    <h3>Suppliers</h3>
+    <p class="sectionsub">Who you buy from, what they have billed, and whether their deliveries actually match the order.</p>
+    <div id="suppliersBox"></div>
+  </section>
+
   <section id="secStock">
     <h3>Materials across every project</h3>
     <p class="sectionsub">Before buying again, check here. This is everything ever ordered, what actually arrived, what is still owed by the supplier, and where you were sent more than you asked for.</p>
@@ -380,7 +393,7 @@ async function boot(){
 }
 
 async function loadAll(){
-  const [projects,requests,alerts,lockouts,suppliers,materials,petty,items,invoices,deliveries,ditems]=await Promise.all([
+  const [projects,requests,alerts,lockouts,suppliers,materials,petty,items,invoices,deliveries,ditems,iitems]=await Promise.all([
     db.from('projects').select('*'),
     db.from('material_requests').select('*').order('created_at',{ascending:false}).limit(300),
     db.from('alerts').select('*').eq('resolved',false).order('created_at',{ascending:false}),
@@ -391,17 +404,18 @@ async function loadAll(){
     db.from('request_items').select('*').order('line_no',{ascending:true}),
     db.from('invoices').select('*'),
     db.from('deliveries').select('*'),
-    db.from('delivery_items').select('*')
+    db.from('delivery_items').select('*'),
+    db.from('invoice_items').select('*')
   ]);
   CACHE={projects:projects.data||[],requests:requests.data||[],suppliers:suppliers.data||[],
          materials:materials.data||[],items:items.data||[],invoices:invoices.data||[],
-         deliveries:deliveries.data||[],ditems:ditems.data||[],
+         deliveries:deliveries.data||[],ditems:ditems.data||[],iitems:iitems.data||[],
          alerts:alerts.data||[],lockouts:lockouts.data||[],petty:petty.data||[]};
   renderTabs(); renderEverything();
   if(ME.role==='master_admin'){loadLockedUsers();loadTechnicians();}
 }
 function renderEverything(){
-  renderKpis(); renderCharts(); fillStatusFilter(); renderRequests(); renderStock();
+  renderKpis(); renderCharts(); fillStatusFilter(); renderRequests(); renderStock(); renderLeaks(); renderSuppliers();
   renderAlerts(); renderLockouts(); fillForms();
 }
 
@@ -636,6 +650,136 @@ function exportCsv(){
   a.click(); toast('Spreadsheet downloaded');
 }
 
+
+
+/* ---------- money leak detection ---------- */
+function leakData(){
+  const pName=id=>(CACHE.projects.find(p=>p.id===id)||{}).name||'—';
+  const reqById={}; CACHE.requests.forEach(r=>reqById[r.id]=r);
+  const dByItem={}; CACHE.ditems.forEach(d=>dByItem[d.request_item_id]=d);
+  const scope=r=>TAB==='all'||r.project_id===TAB;
+
+  // 1. paid for but never arrived -----------------------------------------
+  const ghost=[];
+  CACHE.items.forEach(i=>{
+    const r=reqById[i.request_id]; if(!r||!scope(r))return;
+    if(!['invoiced','closed'].includes(r.status))return;
+    const d=dByItem[i.id];
+    const ord=Number(i.requested_qty)||0;
+    const got=d?(Number(d.received_qty)||0):0;
+    if(ord<=0||got>=ord)return;
+    const unit=(Number(i.expected_amount_aed)||0)/ord;
+    ghost.push({project:pName(r.project_id),material:i.raw_name,short:ord-got,unit:i.unit||'',
+                value:unit*(ord-got),when:r.created_at});
+  });
+
+  // 2. supplier billed more than we ordered --------------------------------
+  const over=[];
+  CACHE.requests.filter(scope).forEach(r=>{
+    const ord=CACHE.items.filter(i=>i.request_id===r.id).reduce((s,i)=>s+(Number(i.expected_amount_aed)||0),0);
+    const bill=CACHE.invoices.filter(v=>v.request_id===r.id).reduce((s,v)=>s+(Number(v.total_amount_aed)||0),0);
+    if(ord>0&&bill>ord)over.push({project:pName(r.project_id),ordered:ord,billed:bill,
+      value:bill-ord,pct:((bill-ord)/ord*100),when:r.created_at});
+  });
+
+  // 3. same material ordered twice for the same project within 14 days -----
+  const dup=[]; const seen={};
+  CACHE.items.forEach(i=>{
+    const r=reqById[i.request_id]; if(!r||!scope(r))return;
+    const k=(r.project_id||'')+'|'+String(i.raw_name||'').trim().toLowerCase();
+    (seen[k]=seen[k]||[]).push({r,i});
+  });
+  Object.values(seen).forEach(list=>{
+    if(list.length<2)return;
+    list.sort((a,b)=>new Date(a.r.created_at)-new Date(b.r.created_at));
+    for(let n=1;n<list.length;n++){
+      const gap=(new Date(list[n].r.created_at)-new Date(list[n-1].r.created_at))/864e5;
+      if(gap<=14)dup.push({project:pName(list[n].r.project_id),material:list[n].i.raw_name,
+        days:Math.round(gap),value:Number(list[n].i.expected_amount_aed)||0,when:list[n].r.created_at});
+    }
+  });
+
+  // 4. paying more than you usually pay ------------------------------------
+  const matById={}; CACHE.materials.forEach(m=>matById[m.id]=m);
+  const byMat={};
+  CACHE.iitems.forEach(li=>{
+    const m=matById[li.material_id]; if(!m)return;
+    (byMat[m.id]=byMat[m.id]||{name:m.canonical_name,rows:[]}).rows.push(Number(li.unit_price_aed)||0);
+  });
+  const price=[];
+  Object.values(byMat).forEach(m=>{
+    if(m.rows.length<2)return;
+    const max=Math.max(...m.rows), rest=m.rows.filter(v=>v!==max);
+    const avg=rest.reduce((a,b)=>a+b,0)/rest.length;
+    if(avg>0&&max>avg*1.15)price.push({material:m.name,paid:max,usual:avg,pct:(max/avg-1)*100,
+      value:max-avg});
+  });
+
+  return {ghost,over,dup,price};
+}
+function renderLeaks(){
+  const L=leakData(); window.__LEAK=L;
+  const sum=a=>a.reduce((s,x)=>s+(x.value||0),0);
+  document.getElementById('leakCards').innerHTML=
+    leakCard('ghost','Paid for, never arrived',aed(sum(L.ghost)),L.ghost.length+' line'+(L.ghost.length===1?'':'s')+' on invoiced jobs','warn')+
+    leakCard('over','Billed above the order',aed(sum(L.over)),L.over.length+' request'+(L.over.length===1?'':'s')+' over','warn')+
+    leakCard('dup','Possible double ordering',aed(sum(L.dup)),L.dup.length+' repeat'+(L.dup.length===1?'':'s')+' within 14 days')+
+    leakCard('price','Paying above your usual price',L.price.length,L.price.length?'materials cost more than before':'no price jumps found');
+  showLeak(window.__LEAKTAB||'ghost');
+}
+function leakCard(key,label,value,foot,cls){
+  return '<div class="kpi '+(cls||'')+'" style="cursor:pointer;" onclick="showLeak(\''+key+'\')">'+
+    '<div class="label">'+esc(label)+'</div><div class="value">'+value+'</div>'+
+    '<div class="foot">'+esc(foot)+'</div></div>';
+}
+function showLeak(key){
+  window.__LEAKTAB=key;
+  const L=window.__LEAK||leakData();
+  const el=document.getElementById('leakDetail');
+  const rows=L[key]||[];
+  if(!rows.length){el.innerHTML='<div class="empty">Nothing found here — good.</div>';return;}
+  let head,body;
+  if(key==='ghost'){
+    head='<tr><th>Project</th><th>Material</th><th class="num">Short by</th><th class="num">Money lost AED</th><th>Raised</th></tr>';
+    body=rows.sort((a,b)=>b.value-a.value).map(r=>'<tr><td>'+esc(r.project)+'</td><td><b>'+esc(r.material)+
+      '</b></td><td class="num"><span class="badge b-red">'+num(r.short)+' '+esc(r.unit)+'</span></td>'+
+      '<td class="num">'+aed(r.value)+'</td><td>'+fmtDate(r.when)+'</td></tr>').join('');
+  }else if(key==='over'){
+    head='<tr><th>Project</th><th class="num">We ordered</th><th class="num">They billed</th><th class="num">Extra AED</th><th class="num">Over by</th></tr>';
+    body=rows.sort((a,b)=>b.value-a.value).map(r=>'<tr><td>'+esc(r.project)+'</td><td class="num">'+aed(r.ordered)+
+      '</td><td class="num">'+aed(r.billed)+'</td><td class="num"><b>'+aed(r.value)+
+      '</b></td><td class="num"><span class="badge b-red">'+r.pct.toFixed(0)+'%</span></td></tr>').join('');
+  }else if(key==='dup'){
+    head='<tr><th>Project</th><th>Material</th><th class="num">Days apart</th><th class="num">Second order AED</th><th>Raised</th></tr>';
+    body=rows.sort((a,b)=>b.value-a.value).map(r=>'<tr><td>'+esc(r.project)+'</td><td><b>'+esc(r.material)+
+      '</b></td><td class="num"><span class="badge b-amber">'+r.days+'</span></td><td class="num">'+aed(r.value)+
+      '</td><td>'+fmtDate(r.when)+'</td></tr>').join('');
+  }else{
+    head='<tr><th>Material</th><th class="num">Highest paid</th><th class="num">Your usual</th><th class="num">Difference</th></tr>';
+    body=rows.sort((a,b)=>b.pct-a.pct).map(r=>'<tr><td><b>'+esc(r.material)+'</b></td><td class="num">'+aed(r.paid)+
+      '</td><td class="num">'+aed(r.usual)+'</td><td class="num"><span class="badge b-red">+'+r.pct.toFixed(0)+
+      '%</span></td></tr>').join('');
+  }
+  el.innerHTML='<table><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
+}
+
+/* ---------- supplier scorecard ---------- */
+function renderSuppliers(){
+  const el=document.getElementById('suppliersBox');
+  const byId={}; CACHE.suppliers.forEach(s=>byId[s.id]={name:s.name,flagged:s.is_flagged,inv:0,total:0});
+  CACHE.invoices.forEach(v=>{const s=byId[v.supplier_id]; if(!s)return;
+    s.inv++; s.total+=Number(v.total_amount_aed)||0;});
+  const rows=Object.values(byId).filter(s=>s.inv>0).sort((a,b)=>b.total-a.total);
+  if(!rows.length){el.innerHTML='<div class="empty">No supplier invoices recorded yet.</div>';return;}
+  const grand=rows.reduce((s,r)=>s+r.total,0);
+  el.innerHTML='<table><thead><tr><th>Supplier</th><th class="num">Invoices</th><th class="num">Total billed AED</th>'+
+    '<th class="num">Average invoice</th><th class="num">Share of spend</th><th></th></tr></thead><tbody>'+
+    rows.map(s=>'<tr><td><b>'+esc(s.name)+'</b></td><td class="num">'+s.inv+'</td>'+
+      '<td class="num">'+aed(s.total)+'</td><td class="num">'+aed(s.total/s.inv)+'</td>'+
+      '<td class="num">'+(grand?((s.total/grand)*100).toFixed(0):0)+'%</td>'+
+      '<td>'+(s.flagged?'<span class="badge b-red">flagged</span>':'')+'</td></tr>').join('')+
+    '</tbody></table>';
+}
 
 /* ---------- materials rollup: what have we got, what is missing ---------- */
 function stockRows(){
