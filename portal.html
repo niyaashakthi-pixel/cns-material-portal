@@ -139,7 +139,20 @@
   <div class="tabs" id="projectTabs"></div>
   <div class="tabline"></div>
 
+  <section id="secActions" style="border-left:3px solid var(--teal);">
+    <h3>What needs doing</h3>
+    <p class="sectionsub">Everything below is costing money or about to. Most urgent first.</p>
+    <div id="actionsBox"></div>
+  </section>
+
+  <section id="secBudget">
+    <h3>Budget vs spend</h3>
+    <p class="sectionsub">Material budget for each project against what has been committed. Amber past 80%, red once it is over.</p>
+    <div id="budgetBox"></div>
+  </section>
+
   <div class="kpis" id="kpis"></div>
+
 
   <div class="charts">
     <div class="chartcard">
@@ -209,6 +222,12 @@
     <p class="sectionsub">Four things that quietly cost money on material orders. Each figure is money already spent or committed — click a row to see exactly which request it came from.</p>
     <div class="kpis" id="leakCards"></div>
     <div id="leakDetail"></div>
+  </section>
+
+  <section id="secTechScore">
+    <h3>Ordering by technician</h3>
+    <p class="sectionsub">Who is raising requests, how much they are ordering, and how often their deliveries come up short.</p>
+    <div id="techScoreBox"></div>
   </section>
 
   <section id="secSuppliers">
@@ -393,7 +412,7 @@ async function boot(){
 }
 
 async function loadAll(){
-  const [projects,requests,alerts,lockouts,suppliers,materials,petty,items,invoices,deliveries,ditems,iitems]=await Promise.all([
+  const [projects,requests,alerts,lockouts,suppliers,materials,petty,items,invoices,deliveries,ditems,iitems,techs]=await Promise.all([
     db.from('projects').select('*'),
     db.from('material_requests').select('*').order('created_at',{ascending:false}).limit(300),
     db.from('alerts').select('*').eq('resolved',false).order('created_at',{ascending:false}),
@@ -405,17 +424,18 @@ async function loadAll(){
     db.from('invoices').select('*'),
     db.from('deliveries').select('*'),
     db.from('delivery_items').select('*'),
-    db.from('invoice_items').select('*')
+    db.from('invoice_items').select('*'),
+    db.from('users').select('id, full_name').eq('role','technician')
   ]);
   CACHE={projects:projects.data||[],requests:requests.data||[],suppliers:suppliers.data||[],
          materials:materials.data||[],items:items.data||[],invoices:invoices.data||[],
-         deliveries:deliveries.data||[],ditems:ditems.data||[],iitems:iitems.data||[],
+         deliveries:deliveries.data||[],ditems:ditems.data||[],iitems:iitems.data||[],techs:techs.data||[],
          alerts:alerts.data||[],lockouts:lockouts.data||[],petty:petty.data||[]};
   renderTabs(); renderEverything();
   if(ME.role==='master_admin'){loadLockedUsers();loadTechnicians();}
 }
 function renderEverything(){
-  renderKpis(); renderCharts(); fillStatusFilter(); renderRequests(); renderStock(); renderLeaks(); renderSuppliers();
+  renderKpis(); renderCharts(); fillStatusFilter(); renderRequests(); renderStock(); renderLeaks(); renderSuppliers(); renderActions(); renderBudget(); renderTechScore();
   renderAlerts(); renderLockouts(); fillForms();
 }
 
@@ -651,6 +671,137 @@ function exportCsv(){
 }
 
 
+
+
+/* ---------- what needs doing: prioritised action list ---------- */
+function buildActions(){
+  const acts=[];
+  const pName=id=>(CACHE.projects.find(p=>p.id===id)||{}).name||'—';
+  const scope=r=>TAB==='all'||r.project_id===TAB;
+  const now=new Date();
+
+  // invoice deadlines about to expire
+  (CACHE.lockouts||[]).filter(t=>!t.satisfied_at&&!t.locked).forEach(t=>{
+    const h=Math.round((new Date(t.deadline_at)-now)/36e5);
+    if(h<0) acts.push({p:1,tag:'Overdue',cls:'b-red',
+      text:'An invoice deadline has passed. The manager will be locked out until the MD overrides it.',
+      money:null});
+    else if(h<=24) acts.push({p:1,tag:h+'h left',cls:'b-red',
+      text:'Supplier invoice due within '+h+' hours or the manager gets locked out.',money:null});
+    else if(h<=48) acts.push({p:3,tag:h+'h left',cls:'b-amber',
+      text:'Supplier invoice due in '+h+' hours.',money:null});
+  });
+
+  // budget overruns
+  CACHE.projects.forEach(pr=>{
+    if(TAB!=='all'&&TAB!==pr.id)return;
+    const bud=Number(pr.material_budget_aed)||0; if(!bud)return;
+    const spent=orderedValue(CACHE.requests.filter(r=>r.project_id===pr.id));
+    const pct=spent/bud*100;
+    if(pct>=100)acts.push({p:1,tag:Math.round(pct)+'% of budget',cls:'b-red',
+      text:esc(pr.name)+' has gone over its material budget.',money:spent-bud});
+    else if(pct>=80)acts.push({p:3,tag:Math.round(pct)+'% of budget',cls:'b-amber',
+      text:esc(pr.name)+' is close to its material budget.',money:bud-spent});
+  });
+
+  // money leaks worth acting on
+  const L=leakData();
+  const ghostSum=L.ghost.reduce((s,x)=>s+x.value,0);
+  if(ghostSum>0)acts.push({p:1,tag:'Chase supplier',cls:'b-red',
+    text:'You have paid for materials that never arrived on site. Worth claiming back.',money:ghostSum});
+  const overSum=L.over.reduce((s,x)=>s+x.value,0);
+  if(overSum>0)acts.push({p:2,tag:'Check invoice',cls:'b-red',
+    text:'A supplier billed more than the order was worth. Verify before paying.',money:overSum});
+  if(L.dup.length)acts.push({p:2,tag:L.dup.length+' repeat'+(L.dup.length===1?'':'s'),cls:'b-amber',
+    text:'The same material was ordered twice for one project within two weeks.',
+    money:L.dup.reduce((s,x)=>s+x.value,0)});
+  if(L.price.length)acts.push({p:3,tag:L.price.length+' material'+(L.price.length===1?'':'s'),cls:'b-amber',
+    text:'You are paying above your usual rate on some materials. Renegotiate or switch supplier.',money:null});
+
+  // spare stock that could avoid a purchase
+  const spare=stockRows().filter(r=>r.spare>0);
+  if(spare.length)acts.push({p:2,tag:spare.length+' with spare',cls:'b-amber',
+    text:'Some materials were over-delivered and should still be on site. Check before buying again.',money:null});
+
+  // requests stuck waiting
+  CACHE.requests.filter(scope).forEach(r=>{
+    const days=(now-new Date(r.created_at))/864e5;
+    if(r.status==='parsed'&&days>7)acts.push({p:3,tag:Math.round(days)+' days',cls:'b-grey',
+      text:esc(pName(r.project_id))+' has a request approved but nothing delivered yet.',money:orderedValue([r])});
+    if(r.status==='parsing'&&days>1)acts.push({p:2,tag:'stuck',cls:'b-red',
+      text:esc(pName(r.project_id))+' has a form the system could not finish reading. It needs re-sending.',money:null});
+  });
+
+  // delivered but no invoice
+  const invIds=new Set(CACHE.invoices.map(v=>v.request_id));
+  CACHE.requests.filter(scope).filter(r=>r.status==='delivered'&&!invIds.has(r.id)).forEach(r=>{
+    acts.push({p:2,tag:'No invoice',cls:'b-amber',
+      text:esc(pName(r.project_id))+' materials are on site but the supplier invoice has not been entered.',
+      money:orderedValue([r])});
+  });
+
+  return acts.sort((a,b)=>a.p-b.p||((b.money||0)-(a.money||0)));
+}
+function renderActions(){
+  const el=document.getElementById('actionsBox');
+  const acts=buildActions();
+  if(!acts.length){el.innerHTML='<div class="empty">Nothing needs attention. Everything is on track.</div>';return;}
+  el.innerHTML='<table><tbody>'+acts.slice(0,12).map(a=>
+    '<tr><td style="width:130px;"><span class="badge '+a.cls+'">'+esc(a.tag)+'</span></td>'+
+    '<td>'+a.text+'</td>'+
+    '<td class="num" style="width:130px;font-weight:650;">'+(a.money?aed(a.money)+' AED':'')+'</td></tr>'
+  ).join('')+'</tbody></table>'+
+  (acts.length>12?'<div class="legend">'+(acts.length-12)+' more further down the page.</div>':'');
+}
+
+/* ---------- budget vs spend ---------- */
+function renderBudget(){
+  const el=document.getElementById('budgetBox');
+  const rows=CACHE.projects.filter(p=>TAB==='all'||p.id===TAB);
+  if(!rows.length){el.innerHTML='<div class="empty">No projects.</div>';return;}
+  el.innerHTML='<table><thead><tr><th>Project</th><th class="num">Budget AED</th><th class="num">Committed</th>'+
+    '<th class="num">Left</th><th style="width:220px;">Used</th></tr></thead><tbody>'+
+    rows.map(p=>{
+      const bud=Number(p.material_budget_aed)||0;
+      const spent=orderedValue(CACHE.requests.filter(r=>r.project_id===p.id));
+      const pct=bud?Math.min(999,spent/bud*100):0;
+      const col=pct>=100?'var(--red)':pct>=80?'var(--amber)':'var(--teal)';
+      const bar='<div style="background:var(--line2);border-radius:5px;height:9px;overflow:hidden;">'+
+        '<div style="width:'+Math.min(100,pct)+'%;height:100%;background:'+col+';"></div></div>'+
+        '<div style="font-size:11px;color:var(--muted);margin-top:3px;">'+(bud?pct.toFixed(0)+'% used':'no budget set')+'</div>';
+      return '<tr><td><b>'+esc(p.name)+'</b></td><td class="num">'+(bud?aed(bud):'—')+'</td>'+
+        '<td class="num">'+aed(spent)+'</td>'+
+        '<td class="num" style="color:'+(bud&&spent>bud?'var(--red)':'inherit')+'">'+(bud?aed(bud-spent):'—')+'</td>'+
+        '<td>'+bar+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+/* ---------- technician ordering scorecard ---------- */
+function renderTechScore(){
+  const el=document.getElementById('techScoreBox');
+  const dByItem={}; CACHE.ditems.forEach(d=>dByItem[d.request_item_id]=d);
+  const map={};
+  CACHE.requests.filter(r=>TAB==='all'||r.project_id===TAB).forEach(r=>{
+    const k=r.technician_id||'unknown';
+    map[k]=map[k]||{reqs:0,value:0,lines:0,short:0};
+    const m=map[k]; m.reqs++;
+    CACHE.items.filter(i=>i.request_id===r.id).forEach(i=>{
+      m.lines++; m.value+=Number(i.expected_amount_aed)||0;
+      const d=dByItem[i.id];
+      if(d&&Number(d.qty_variance)<0)m.short++;
+    });
+  });
+  const names={}; (CACHE.techs||[]).forEach(t=>names[t.id]=t.full_name);
+  const rows=Object.entries(map).map(([id,m])=>({name:names[id]||'Technician',...m}))
+    .sort((a,b)=>b.value-a.value);
+  if(!rows.length){el.innerHTML='<div class="empty">No requests yet.</div>';return;}
+  el.innerHTML='<table><thead><tr><th>Technician</th><th class="num">Requests</th><th class="num">Lines</th>'+
+    '<th class="num">Value ordered AED</th><th class="num">Short deliveries</th></tr></thead><tbody>'+
+    rows.map(r=>'<tr><td><b>'+esc(r.name)+'</b></td><td class="num">'+r.reqs+'</td><td class="num">'+r.lines+'</td>'+
+      '<td class="num">'+aed(r.value)+'</td><td class="num">'+
+      (r.short?'<span class="badge b-amber">'+r.short+' of '+r.lines+'</span>':'—')+'</td></tr>').join('')+
+    '</tbody></table>';
+}
 
 /* ---------- money leak detection ---------- */
 function leakData(){
