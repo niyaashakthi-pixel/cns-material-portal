@@ -2,175 +2,192 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>CNS Material Tracker — Admin Portal</title>
+<title>Champs &amp; Stars — Material Spend</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root{
-    --bg:#f6f5f1; --surface:#ffffff; --surface2:#fbfaf7;
-    --line:#e4e0d6; --line2:#efece4;
-    --ink:#1c1b17; --ink2:#4a4740; --muted:#827e73;
-    --green:#0d6e4e; --green-bg:#e6f1ec;
-    --amber:#9a6400; --amber-bg:#fbf1de;
-    --red:#a8302a; --red-bg:#f9eae8;
-    --blue:#1f5aa8; --blue-bg:#e8eef8;
-    --shadow:0 1px 2px rgba(28,27,23,.05), 0 2px 8px rgba(28,27,23,.04);
+    --bg:#f5f4f0; --surface:#ffffff; --surface2:#fafaf7;
+    --line:#e3e0d8; --line2:#eeebe4;
+    --ink:#15201f; --ink2:#425150; --muted:#7d8785;
+    --teal:#02505C; --teal2:#0a6b78; --teal-bg:#e4eff1;
+    --amber:#8a5a00; --amber-bg:#fbf0d9;
+    --red:#a02a24; --red-bg:#f9e8e6;
+    --sand:#b08442;
+    --shadow:0 1px 2px rgba(21,32,31,.05), 0 2px 10px rgba(21,32,31,.04);
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
        background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
 
-  header{background:var(--surface);border-bottom:1px solid var(--line);padding:16px 30px;
-         display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;}
+  header{background:var(--teal);color:#fff;padding:14px 30px;display:flex;align-items:center;
+         justify-content:space-between;position:sticky;top:0;z-index:40;}
   .brand{display:flex;align-items:baseline;gap:12px;}
-  .brand h1{font-size:16px;margin:0;font-weight:650;letter-spacing:-.01em;}
-  .brand .sub{color:var(--muted);font-size:12px;}
+  .brand h1{font-size:16px;margin:0;font-weight:650;letter-spacing:-.01em;color:#fff;}
+  .brand .sub{color:rgba(255,255,255,.72);font-size:12px;}
   .rolechip{display:inline-block;padding:3px 9px;border-radius:5px;font-size:10.5px;font-weight:700;
-            background:var(--green-bg);color:var(--green);text-transform:uppercase;letter-spacing:.05em;}
+            background:rgba(255,255,255,.16);color:#fff;text-transform:uppercase;letter-spacing:.05em;}
+  header button{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.22);}
+  header button:hover{background:rgba(255,255,255,.22);}
 
-  button{background:var(--green);color:#fff;border:none;border-radius:7px;padding:8px 14px;
-         font-weight:600;cursor:pointer;font-size:13px;font-family:inherit;transition:opacity .12s;}
-  button:hover{opacity:.88;}
+  button{background:var(--teal);color:#fff;border:none;border-radius:7px;padding:8px 14px;
+         font-weight:600;cursor:pointer;font-size:13px;font-family:inherit;transition:.12s;}
+  button:hover{opacity:.9;}
   button.secondary{background:var(--surface);color:var(--ink2);border:1px solid var(--line);}
   button.tiny{padding:4px 9px;font-size:11.5px;}
-  button:disabled{opacity:.45;cursor:default;}
 
-  main{padding:24px 30px 72px;max-width:1360px;margin:0 auto;}
+  main{padding:0 30px 72px;max-width:1360px;margin:0 auto;}
   section{background:var(--surface);border:1px solid var(--line);border-radius:11px;
           padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow);}
-  section h3{margin:0 0 14px;font-size:13px;font-weight:650;letter-spacing:.01em;
-             display:flex;align-items:center;justify-content:space-between;gap:10px;}
-  section h3 .hint{font-weight:400;color:var(--muted);font-size:11.5px;}
+  section h3{margin:0 0 5px;font-size:14px;font-weight:650;}
+  section .sectionsub{margin:0 0 14px;font-size:12px;color:var(--muted);}
+
+  /* project tabs */
+  .tabs{display:flex;gap:4px;padding:14px 0 0;flex-wrap:wrap;position:sticky;top:52px;background:var(--bg);z-index:30;}
+  .tab{padding:9px 16px;border-radius:8px 8px 0 0;border:1px solid transparent;border-bottom:none;
+       background:transparent;color:var(--ink2);font-size:13px;font-weight:600;cursor:pointer;}
+  .tab:hover{background:rgba(2,80,92,.06);}
+  .tab.active{background:var(--surface);border-color:var(--line);color:var(--teal);box-shadow:0 -1px 2px rgba(21,32,31,.03);}
+  .tab .amt{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:2px;}
+  .tab.active .amt{color:var(--teal2);}
+  .tabline{height:1px;background:var(--line);margin-bottom:18px;}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px;}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:15px 17px;box-shadow:var(--shadow);}
+  .kpi .label{color:var(--muted);font-size:11px;font-weight:600;margin-bottom:6px;}
+  .kpi .value{font-size:25px;font-weight:680;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+  .kpi .foot{font-size:11.5px;color:var(--muted);margin-top:5px;}
+  .kpi.accent .value{color:var(--teal);}
+  .kpi.warn .value{color:var(--amber);}
+
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+  .chartcard{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:16px 18px;box-shadow:var(--shadow);}
+  .chartcard h4{margin:0 0 3px;font-size:13px;font-weight:650;}
+  .chartcard .cap{margin:0 0 12px;font-size:11.5px;color:var(--muted);}
+  .chartwrap{position:relative;height:230px;}
 
   table{width:100%;border-collapse:collapse;font-size:13px;}
   th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2);vertical-align:middle;}
-  th{color:var(--muted);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;
-     cursor:default;user-select:none;white-space:nowrap;}
+  th{color:var(--muted);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;}
   th.sortable{cursor:pointer;}
   th.sortable:hover{color:var(--ink);}
   tbody tr:hover{background:var(--surface2);}
   tr:last-child td{border-bottom:none;}
   td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
 
-  .badge{display:inline-block;padding:2.5px 8px;border-radius:5px;font-size:11px;font-weight:650;letter-spacing:.01em;}
-  .b-green{background:var(--green-bg);color:var(--green);}
-  .b-orange{background:var(--amber-bg);color:var(--amber);}
+  .badge{display:inline-block;padding:2.5px 9px;border-radius:5px;font-size:11px;font-weight:650;white-space:nowrap;}
+  .b-teal{background:var(--teal-bg);color:var(--teal);}
+  .b-amber{background:var(--amber-bg);color:var(--amber);}
   .b-red{background:var(--red-bg);color:var(--red);}
-  .b-grey{background:#eeece6;color:var(--ink2);}
-  .b-blue{background:var(--blue-bg);color:var(--blue);}
+  .b-grey{background:#edeae3;color:var(--ink2);}
+  .b-green{background:#e3f0e6;color:#1c6b34;}
 
   .empty{color:var(--muted);font-size:13px;padding:14px 0;}
   .login{max-width:410px;margin:90px auto;background:var(--surface);border:1px solid var(--line);
          border-radius:12px;padding:30px;box-shadow:var(--shadow);}
-  .login h2{margin:0 0 6px;font-size:17px;letter-spacing:-.01em;}
-
+  .login h2{margin:0 0 4px;font-size:18px;color:var(--teal);}
   input,select{width:100%;padding:9px 11px;border-radius:7px;border:1px solid var(--line);
                background:var(--surface);color:var(--ink);font-size:13px;margin-bottom:10px;font-family:inherit;}
-  input:focus,select:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg);}
+  input:focus,select:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-bg);}
   label{display:block;font-size:11.5px;color:var(--muted);margin:8px 0 4px;font-weight:500;}
-
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px;}
-  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:15px 17px;box-shadow:var(--shadow);}
-  .kpi .label{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:7px;}
-  .kpi .value{font-size:26px;font-weight:680;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
-  .kpi .foot{font-size:11.5px;color:var(--muted);margin-top:5px;}
-
-  .charts{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
-  .chartcard{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:16px 18px;box-shadow:var(--shadow);}
-  .chartcard h4{margin:0 0 3px;font-size:12.5px;font-weight:650;}
-  .chartcard .cap{margin:0 0 12px;font-size:11.5px;color:var(--muted);}
-  .chartwrap{position:relative;height:210px;}
-
   .toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
   .toolbar input,.toolbar select{margin-bottom:0;width:auto;}
-  .toolbar input[type=search]{min-width:210px;}
+  .toolbar input[type=search]{min-width:230px;}
   .spacer{flex:1;}
-
   .itemrow{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-bottom:6px;}
   .subtable{background:var(--surface2);border-radius:8px;padding:4px 10px 8px;}
-  .subtable th{font-size:10px;}
-  .note{background:var(--amber-bg);border:1px solid #ecd9ad;color:var(--amber);
-        border-radius:9px;padding:10px 14px;font-size:12.5px;margin-bottom:16px;}
   #toast{position:fixed;bottom:22px;right:22px;background:var(--ink);color:#fff;padding:11px 17px;
-         border-radius:9px;font-size:13px;display:none;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.18);}
+         border-radius:9px;font-size:13px;display:none;z-index:60;}
+  .legend{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.7;}
+  .legend b{color:var(--ink2);}
   @media(max-width:900px){.charts,.grid2{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
 
 <div id="loginScreen" class="login" style="display:none;">
-  <h2>CNS Material Tracker</h2>
-  <p style="color:var(--muted);font-size:13px;margin-top:0;">Staff sign-in. Enter your work email and we'll send a one-time login link.</p>
+  <h2>Champs &amp; Stars</h2>
+  <p style="color:var(--muted);font-size:13px;margin-top:0;">Material spend tracker. Enter your work email and we'll send a one-time sign-in link.</p>
   <label>Email</label>
   <input id="loginEmail" type="email" placeholder="you@cnsmea.com" />
-  <button onclick="sendLink()">Send login link</button>
+  <button onclick="sendLink()">Send sign-in link</button>
   <div id="otpBlock" style="display:none;">
     <label>6-digit code from the email</label>
     <input id="otpCode" inputmode="numeric" placeholder="123456" />
     <button onclick="verifyCode()">Verify &amp; sign in</button>
   </div>
-  <p id="loginMsg" style="color:var(--green);font-size:12.5px;"></p>
-  <p style="color:var(--muted);font-size:11.5px;">Your email must be registered by the Managing Director. Check spam if it doesn't arrive.</p>
+  <p id="loginMsg" style="color:var(--teal);font-size:12.5px;"></p>
+  <p style="color:var(--muted);font-size:11.5px;">Your email must be registered by the Managing Director.</p>
 </div>
 
 <div id="app" style="display:none;">
 <header>
   <div class="brand">
-    <h1>Material Tracker</h1>
+    <h1>Champs &amp; Stars · Material Spend</h1>
     <span class="rolechip" id="roleChip"></span>
     <span class="sub" id="whoami"></span>
   </div>
   <div style="display:flex;gap:8px;">
-    <button class="secondary" onclick="loadAll()">Refresh</button>
-    <button class="secondary" onclick="signOut()">Sign out</button>
+    <button onclick="loadAll()">Refresh</button>
+    <button onclick="signOut()">Sign out</button>
   </div>
 </header>
 
 <main>
+  <div class="tabs" id="projectTabs"></div>
+  <div class="tabline"></div>
+
   <div class="kpis" id="kpis"></div>
 
-  <div class="charts" style="margin-bottom:18px;">
+  <div class="charts">
     <div class="chartcard">
-      <h4>Requested vs invoiced value</h4>
-      <p class="cap">By project, AED. Gap = ordered but not yet billed.</p>
-      <div class="chartwrap"><canvas id="chProject"></canvas></div>
+      <h4>Where the money goes</h4>
+      <p class="cap" id="capMoney">Top materials by value ordered.</p>
+      <div class="chartwrap"><canvas id="chMoney"></canvas></div>
     </div>
     <div class="chartcard">
-      <h4>Request pipeline</h4>
-      <p class="cap">Where every request currently sits.</p>
-      <div class="chartwrap"><canvas id="chPipeline"></canvas></div>
+      <h4>How much we're using</h4>
+      <p class="cap" id="capQty">Quantity actually delivered to site, by material.</p>
+      <div class="chartwrap"><canvas id="chQty"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="chartcard">
+      <h4>Ordered vs actually paid</h4>
+      <p class="cap" id="capSpend">What we committed to versus what suppliers have billed us.</p>
+      <div class="chartwrap"><canvas id="chSpend"></canvas></div>
     </div>
     <div class="chartcard">
-      <h4>Request volume</h4>
-      <p class="cap">Requests raised per day, last 30 days.</p>
-      <div class="chartwrap"><canvas id="chVolume"></canvas></div>
-    </div>
-    <div class="chartcard">
-      <h4>Top materials by value</h4>
-      <p class="cap">Highest expected spend across all requests.</p>
-      <div class="chartwrap"><canvas id="chMaterials"></canvas></div>
+      <h4>Money tied up right now</h4>
+      <p class="cap">Delivered to site but no supplier invoice yet — this is money you owe but haven't been billed for.</p>
+      <div class="chartwrap"><canvas id="chOwed"></canvas></div>
     </div>
   </div>
 
   <section id="secAlerts">
-    <h3>Open alerts <span class="hint">Price and quantity variances flagged automatically</span></h3>
+    <h3>Things to check</h3>
+    <p class="sectionsub">Raised automatically when a delivery doesn't match the order, or a supplier price jumps.</p>
     <div id="alertsBox"></div>
   </section>
 
   <section id="secLockouts">
-    <h3>Lockout timers <span class="hint">72-hour invoice deadline after delivery</span></h3>
+    <h3>Invoice deadlines</h3>
+    <p class="sectionsub">After materials arrive on site, the supplier invoice must be submitted within 72 hours.</p>
     <div id="lockoutsBox"></div>
   </section>
 
   <section id="secLockedUsers" style="display:none;">
-    <h3>Locked managers <span class="hint">Managing Director override</span></h3>
+    <h3>Locked managers</h3>
+    <p class="sectionsub">Missed an invoice deadline. Only the Managing Director can unlock.</p>
     <div id="lockedUsersBox"></div>
   </section>
 
   <section id="secTechnicians" style="display:none;">
-    <h3>Technicians <span class="hint">Only registered numbers can submit requests over WhatsApp</span></h3>
+    <h3>Site technicians</h3>
+    <p class="sectionsub">Only these numbers can send material request forms over WhatsApp.</p>
     <div class="grid2">
       <div>
         <label>Full name</label>
@@ -178,7 +195,7 @@
         <label>Phone number (country code, no +)</label>
         <input id="techPhone" placeholder="9715XXXXXXXX" />
         <button style="margin-top:8px;" onclick="addTechnician()">Add technician</button>
-        <p id="techMsg" style="font-size:12.5px;color:var(--green);"></p>
+        <p id="techMsg" style="font-size:12.5px;color:var(--teal);"></p>
       </div>
       <div>
         <label>Registered technicians</label>
@@ -188,22 +205,33 @@
   </section>
 
   <section id="secRequests">
-    <h3>Material requests <span class="hint" id="reqCount"></span></h3>
+    <h3>Material requests</h3>
+    <p class="sectionsub" id="reqCount"></p>
     <div class="toolbar">
-      <input type="search" id="reqSearch" placeholder="Search material or project…" oninput="renderRequests()" />
-      <select id="reqProject" onchange="renderRequests()" style="min-width:150px;"></select>
-      <select id="reqStatus" onchange="renderRequests()" style="min-width:140px;"></select>
+      <input type="search" id="reqSearch" placeholder="Search a material or request…" oninput="renderRequests()" />
+      <select id="reqStatus" onchange="renderRequests()" style="min-width:180px;"></select>
       <div class="spacer"></div>
-      <button class="secondary tiny" onclick="exportCsv()">Export CSV</button>
+      <button class="secondary tiny" onclick="exportCsv()">Download as spreadsheet</button>
     </div>
     <div id="requestsBox"></div>
+    <div class="legend">
+      <b>What the stages mean.</b>
+      <b>Waiting for form</b> — technician picked a project but hasn't sent the PDF yet. ·
+      <b>Reading form</b> — the system is extracting the materials from the PDF. ·
+      <b>Ready to order</b> — materials have been read off the form and are waiting to be bought and delivered. ·
+      <b>Delivery in progress</b> — technician is confirming items on site right now. ·
+      <b>Delivered</b> — everything arrived, supplier invoice still needed. ·
+      <b>Invoiced</b> — supplier has billed us. ·
+      <b>Closed</b> — finished and paid.
+    </div>
   </section>
 
   <section id="secInvoice" style="display:none;">
-    <h3>Submit invoice <span class="hint">Ops Manager</span></h3>
+    <h3>Enter a supplier invoice</h3>
+    <p class="sectionsub">Records what the supplier actually charged, and updates petty cash automatically.</p>
     <div class="grid2">
       <div>
-        <label>Material request</label>
+        <label>Which material request</label>
         <select id="invRequest"></select>
         <label>Supplier (type a new name to create it)</label>
         <input id="invSupplier" list="supplierList" placeholder="Supplier name" />
@@ -212,28 +240,29 @@
         <input id="invReceipt" placeholder="receipts/xxx.pdf" />
       </div>
       <div>
-        <label>Line items</label>
+        <label>What was billed</label>
         <div id="invItems"></div>
         <button class="secondary tiny" onclick="addInvItem()">+ Add line</button>
         <div style="margin-top:10px;font-size:13px;">Total: <b id="invTotal">0.00</b> AED</div>
-        <button style="margin-top:10px;" onclick="submitInvoice()">Submit invoice</button>
-        <p id="invMsg" style="font-size:12.5px;color:var(--green);"></p>
+        <button style="margin-top:10px;" onclick="submitInvoice()">Save invoice</button>
+        <p id="invMsg" style="font-size:12.5px;color:var(--teal);"></p>
       </div>
     </div>
   </section>
 
   <section id="secAlaan" style="display:none;">
-    <h3>Record ALAAN funding <span class="hint">Ops Manager</span></h3>
+    <h3>Record ALAAN card spend</h3>
+    <p class="sectionsub">Money drawn on the company card against a material request.</p>
     <div class="grid2">
       <div>
-        <label>Material request</label>
+        <label>Which material request</label>
         <select id="alaanRequest"></select>
       </div>
       <div>
         <label>Amount disbursed (AED)</label>
         <input id="alaanAmount" type="number" step="0.01" placeholder="0.00" />
-        <button onclick="submitAlaan()">Record funding</button>
-        <p id="alaanMsg" style="font-size:12.5px;color:var(--green);"></p>
+        <button onclick="submitAlaan()">Record spend</button>
+        <p id="alaanMsg" style="font-size:12.5px;color:var(--teal);"></p>
       </div>
     </div>
   </section>
@@ -246,22 +275,36 @@
 const SUPA_URL = 'https://scjtiuztvohagvmwgntn.supabase.co';
 const SUPA_KEY = 'sb_publishable_HQ_cM4QKr4D7MNZTseNwbg_j9MmNK8L';
 const db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-let ME = null;
-let CACHE = {};
-let CHARTS = {};
-let SORT = { key:'created_at', dir:-1 };
+let ME=null, CACHE={}, CHARTS={}, TAB='all';
+let SORT={key:'created_at',dir:-1};
 
-const C = { green:'#0d6e4e', greenSoft:'#8fc3ae', amber:'#c98a1e', red:'#a8302a',
-            blue:'#1f5aa8', grey:'#b9b4a8', ink:'#1c1b17', line:'#e4e0d6', muted:'#827e73' };
+const C={teal:'#02505C', teal2:'#3e8b96', sand:'#b08442', sand2:'#d8bd91',
+         amber:'#c08a2e', red:'#a02a24', grey:'#c3bfb5', ink:'#15201f', line:'#e3e0d8', muted:'#7d8785'};
 
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',3200);}
+/* plain-English stage names — the owner should never see database words */
+const STAGE={
+  awaiting_file:{t:'Waiting for form',   c:'b-amber'},
+  parsing:{t:'Reading form',             c:'b-amber'},
+  parsed:{t:'Ready to order',            c:'b-teal'},
+  parse_failed:{t:"Couldn't read form",  c:'b-red'},
+  delivery_started:{t:'Delivery in progress', c:'b-teal'},
+  delivered:{t:'Delivered — needs invoice',   c:'b-green'},
+  invoiced:{t:'Invoiced',                c:'b-grey'},
+  closed:{t:'Closed',                    c:'b-grey'},
+  on_hold:{t:'On hold',                  c:'b-red'}
+};
+const stageName=s=>(STAGE[s]||{t:String(s||'').replace(/_/g,' ')}).t;
+const stageClass=s=>(STAGE[s]||{c:'b-grey'}).c;
+
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',3200);}
 function fmtDate(d){if(!d)return '—';const dt=new Date(d);
-  return dt.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+dt.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});}
+  return dt.toLocaleDateString(undefined,{day:'numeric',month:'short'})+' '+dt.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function money(v){return (v===null||v===undefined||v==='')?'—':Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+function aed(v){return (v===null||v===undefined||v==='')?'—':Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+function aed0(v){return Number(v||0).toLocaleString(undefined,{maximumFractionDigits:0});}
 function num(v){return (v===null||v===undefined||v==='')?'—':Number(v).toLocaleString();}
 
-const REDIRECT_TO = location.origin + location.pathname;
+const REDIRECT_TO=location.origin+location.pathname;
 
 async function sendLink(){
   const email=document.getElementById('loginEmail').value.trim(); if(!email)return;
@@ -272,42 +315,36 @@ async function sendLink(){
 }
 async function verifyCode(){
   const email=document.getElementById('loginEmail').value.trim();
-  const token=document.getElementById('otpCode').value.trim();
-  if(!email||!token)return;
+  const token=document.getElementById('otpCode').value.trim(); if(!email||!token)return;
   let {error}=await db.auth.verifyOtp({email,token,type:'email'});
   if(error){({error}=await db.auth.verifyOtp({email,token,type:'magiclink'}));}
   if(error){document.getElementById('loginMsg').textContent='Error: '+(error.message||JSON.stringify(error));return;}
   location.reload();
 }
 async function signOut(){await db.auth.signOut();location.reload();}
-
 function authUrlError(){
-  const h=new URLSearchParams(location.hash.replace(/^#/,''));
-  const q=new URLSearchParams(location.search);
+  const h=new URLSearchParams(location.hash.replace(/^#/,'')),q=new URLSearchParams(location.search);
   const d=h.get('error_description')||q.get('error_description');
   return d?decodeURIComponent(d.replace(/\+/g,' ')):null;
 }
-
 async function boot(){
   const {data:{session}}=await db.auth.getSession();
   if(!session){
     document.getElementById('loginScreen').style.display='block';
-    const e=authUrlError();
-    if(e)document.getElementById('loginMsg').textContent='Sign-in link problem: '+e+' — request a new one below.';
-    db.auth.onAuthStateChange((_e,s)=>{if(s)location.reload();});
-    return;
+    const e=authUrlError(); if(e)document.getElementById('loginMsg').textContent='Sign-in link problem: '+e;
+    db.auth.onAuthStateChange((_e,s)=>{if(s)location.reload();}); return;
   }
   const email=session.user.email;
   const {data:me,error}=await db.from('users').select('*').eq('email',email).maybeSingle();
   if(error||!me){
     document.getElementById('loginScreen').style.display='block';
-    document.getElementById('loginMsg').textContent='Signed in as '+email+' but this email is not in the staff list. Ask the MD to register it.';
+    document.getElementById('loginMsg').textContent='Signed in as '+email+' but this email is not registered. Ask the MD to add it.';
     return;
   }
   ME=me;
   document.getElementById('app').style.display='block';
   document.getElementById('roleChip').textContent=me.role.replace('_',' ');
-  document.getElementById('whoami').textContent=me.full_name+' · '+email;
+  document.getElementById('whoami').textContent=me.full_name;
   const isAdmin=me.role==='master_admin', isOps=me.role==='ops_manager';
   document.getElementById('secLockedUsers').style.display=isAdmin?'block':'none';
   document.getElementById('secTechnicians').style.display=isAdmin?'block':'none';
@@ -317,221 +354,260 @@ async function boot(){
 }
 
 async function loadAll(){
-  const [projects,requests,alerts,lockouts,suppliers,materials,petty,items,invoices,deliveries]=await Promise.all([
+  const [projects,requests,alerts,lockouts,suppliers,materials,petty,items,invoices,deliveries,ditems]=await Promise.all([
     db.from('projects').select('*'),
-    db.from('material_requests').select('*').order('created_at',{ascending:false}).limit(200),
+    db.from('material_requests').select('*').order('created_at',{ascending:false}).limit(300),
     db.from('alerts').select('*').eq('resolved',false).order('created_at',{ascending:false}),
-    db.from('lockout_timers').select('*').order('deadline_at',{ascending:true}).limit(20),
+    db.from('lockout_timers').select('*').order('deadline_at',{ascending:true}).limit(30),
     db.from('suppliers').select('*'),
     db.from('materials').select('*'),
     db.from('petty_cash_ledger').select('*').order('created_at',{ascending:false}).limit(1),
     db.from('request_items').select('*').order('line_no',{ascending:true}),
     db.from('invoices').select('*'),
-    db.from('deliveries').select('*')
+    db.from('deliveries').select('*'),
+    db.from('delivery_items').select('*')
   ]);
   CACHE={projects:projects.data||[],requests:requests.data||[],suppliers:suppliers.data||[],
          materials:materials.data||[],items:items.data||[],invoices:invoices.data||[],
-         deliveries:deliveries.data||[]};
-  renderKpis(CACHE.projects,CACHE.requests,alerts.data||[],petty.data||[]);
-  renderAlerts(alerts.data||[]);
-  renderLockouts(lockouts.data||[]);
-  fillFilters();
-  renderRequests();
-  renderCharts();
-  fillForms();
+         deliveries:deliveries.data||[],ditems:ditems.data||[],
+         alerts:alerts.data||[],lockouts:lockouts.data||[],petty:petty.data||[]};
+  renderTabs(); renderEverything();
   if(ME.role==='master_admin'){loadLockedUsers();loadTechnicians();}
 }
-
-/* ---------- KPIs ---------- */
-function renderKpis(projects,requests,alerts,petty){
-  const open=requests.filter(r=>!['closed','invoiced'].includes(r.status)).length;
-  const bal=petty[0]?Number(petty[0].balance_after).toFixed(2):'—';
-  const value=(CACHE.items||[]).reduce((s,i)=>s+(Number(i.expected_amount_aed)||0),0);
-  const invoiced=(CACHE.invoices||[]).reduce((s,i)=>s+(Number(i.total_amount_aed)||0),0);
-  const pending=Math.max(0,value-invoiced);
-  document.getElementById('kpis').innerHTML=
-    card('Active projects',projects.filter(p=>p.status==='active').length,projects.length+' total')+
-    card('Open requests',open,requests.length+' all time')+
-    card('Open alerts',alerts.length,alerts.length?'needs attention':'all clear')+
-    card('Requested value',money(value),'AED across '+(CACHE.items||[]).length+' line items')+
-    card('Not yet invoiced',money(pending),'AED outstanding')+
-    card('Petty cash',bal,'AED balance');
+function renderEverything(){
+  renderKpis(); renderCharts(); fillStatusFilter(); renderRequests();
+  renderAlerts(); renderLockouts(); fillForms();
 }
-function card(label,value,foot){
-  return '<div class="kpi"><div class="label">'+esc(label)+'</div><div class="value">'+value+
+
+/* ---------- scoping by project tab ---------- */
+function scopedRequests(){
+  return TAB==='all'?CACHE.requests:CACHE.requests.filter(r=>r.project_id===TAB);
+}
+function scopedItems(){
+  const ids=new Set(scopedRequests().map(r=>r.id));
+  return CACHE.items.filter(i=>ids.has(i.request_id));
+}
+function scopedInvoices(){
+  const ids=new Set(scopedRequests().map(r=>r.id));
+  return CACHE.invoices.filter(v=>ids.has(v.request_id));
+}
+function orderedValue(rs){const ids=new Set(rs.map(r=>r.id));
+  return CACHE.items.filter(i=>ids.has(i.request_id)).reduce((s,i)=>s+(Number(i.expected_amount_aed)||0),0);}
+function billedValue(rs){const ids=new Set(rs.map(r=>r.id));
+  return CACHE.invoices.filter(v=>ids.has(v.request_id)).reduce((s,v)=>s+(Number(v.total_amount_aed)||0),0);}
+
+function renderTabs(){
+  const el=document.getElementById('projectTabs');
+  const all=CACHE.requests;
+  let html='<div class="tab '+(TAB==='all'?'active':'')+'" onclick="setTab(\'all\')">All projects'+
+           '<span class="amt">'+aed0(orderedValue(all))+' AED ordered</span></div>';
+  CACHE.projects.forEach(p=>{
+    const rs=CACHE.requests.filter(r=>r.project_id===p.id);
+    html+='<div class="tab '+(TAB===p.id?'active':'')+'" onclick="setTab(\''+p.id+'\')">'+esc(p.name)+
+          '<span class="amt">'+aed0(orderedValue(rs))+' AED ordered</span></div>';
+  });
+  el.innerHTML=html;
+}
+function setTab(id){TAB=id;renderTabs();renderEverything();}
+
+/* ---------- money KPIs ---------- */
+function renderKpis(){
+  const rs=scopedRequests(), its=scopedItems(), invs=scopedInvoices();
+  const ordered=its.reduce((s,i)=>s+(Number(i.expected_amount_aed)||0),0);
+  const billed=invs.reduce((s,v)=>s+(Number(v.total_amount_aed)||0),0);
+  // delivered-but-unbilled: requests that reached delivered but have no invoice
+  const invoicedIds=new Set(CACHE.invoices.map(v=>v.request_id));
+  const owedRs=rs.filter(r=>['delivered','delivery_started'].includes(r.status)&&!invoicedIds.has(r.id));
+  const owed=orderedValue(owedRs);
+  const urgent=CACHE.lockouts.filter(t=>!t.satisfied_at&&!t.locked&&new Date(t.deadline_at)>new Date()).length;
+  const label=TAB==='all'?'across all projects':(CACHE.projects.find(p=>p.id===TAB)||{}).name||'';
+  document.getElementById('kpis').innerHTML=
+    kpi('Ordered',aed(ordered),'AED '+label,'accent')+
+    kpi('Actually billed by suppliers',aed(billed),invs.length+' invoice'+(invs.length===1?'':'s'))+
+    kpi('On site, not yet billed',aed(owed),owedRs.length+' request'+(owedRs.length===1?'':'s')+' waiting','warn')+
+    kpi('Live jobs',rs.filter(r=>!['closed','invoiced'].includes(r.status)).length,rs.length+' in total')+
+    kpi('Things to check',CACHE.alerts.length,urgent?urgent+' invoice deadline'+(urgent===1?'':'s')+' running':'no deadlines running');
+}
+function kpi(label,value,foot,cls){
+  return '<div class="kpi '+(cls||'')+'"><div class="label">'+esc(label)+'</div><div class="value">'+value+
          '</div><div class="foot">'+esc(foot)+'</div></div>';
 }
 
 /* ---------- charts ---------- */
-function destroyChart(k){if(CHARTS[k]){CHARTS[k].destroy();delete CHARTS[k];}}
-const baseOpts={responsive:true,maintainAspectRatio:false,
+function kill(k){if(CHARTS[k]){CHARTS[k].destroy();delete CHARTS[k];}}
+const gridOpts={responsive:true,maintainAspectRatio:false,
   plugins:{legend:{labels:{boxWidth:10,boxHeight:10,font:{size:11},color:C.ink}}},
   scales:{x:{grid:{display:false},ticks:{color:C.muted,font:{size:10.5}}},
           y:{beginAtZero:true,grid:{color:C.line},ticks:{color:C.muted,font:{size:10.5}}}}};
 
 function renderCharts(){
-  const items=CACHE.items||[], reqs=CACHE.requests||[], invs=CACHE.invoices||[];
+  const rs=scopedRequests(), its=scopedItems();
   const pName=id=>(CACHE.projects.find(p=>p.id===id)||{}).name||'Unassigned';
+  const scopeTxt=TAB==='all'?'across all projects':'on '+pName(TAB);
+  document.getElementById('capMoney').textContent='Top materials by value ordered, '+scopeTxt+'.';
+  document.getElementById('capQty').textContent='Quantity confirmed delivered to site, '+scopeTxt+'.';
+  document.getElementById('capSpend').textContent=TAB==='all'
+    ? 'Per project. The gap is money committed but not yet billed.'
+    : 'Per request on '+pName(TAB)+'.';
 
-  // 1. requested vs invoiced by project
-  const byProj={};
-  reqs.forEach(r=>{
-    const k=pName(r.project_id);
-    byProj[k]=byProj[k]||{req:0,inv:0};
-    byProj[k].req+=items.filter(i=>i.request_id===r.id).reduce((s,i)=>s+(Number(i.expected_amount_aed)||0),0);
-    byProj[k].inv+=invs.filter(v=>v.request_id===r.id).reduce((s,v)=>s+(Number(v.total_amount_aed)||0),0);
-  });
-  const pk=Object.keys(byProj);
-  destroyChart('p');
-  CHARTS.p=new Chart(document.getElementById('chProject'),{type:'bar',
-    data:{labels:pk.length?pk:['No data'],datasets:[
-      {label:'Requested',data:pk.map(k=>byProj[k].req),backgroundColor:C.green,borderRadius:4,barPercentage:.7},
-      {label:'Invoiced',data:pk.map(k=>byProj[k].inv),backgroundColor:C.greenSoft,borderRadius:4,barPercentage:.7}]},
-    options:baseOpts});
-
-  // 2. pipeline
-  const st={}; reqs.forEach(r=>st[r.status]=(st[r.status]||0)+1);
-  const sk=Object.keys(st);
-  const colFor=s=>({parsed:C.blue,parsing:C.amber,awaiting_file:C.amber,delivered:C.green,
-                    delivery_started:C.greenSoft,invoiced:C.grey,closed:C.grey,parse_failed:C.red})[s]||C.grey;
-  destroyChart('s');
-  CHARTS.s=new Chart(document.getElementById('chPipeline'),{type:'doughnut',
-    data:{labels:sk.length?sk.map(s=>s.replace(/_/g,' ')):['No requests'],
-          datasets:[{data:sk.length?sk.map(k=>st[k]):[1],
-                     backgroundColor:sk.length?sk.map(colFor):['#eeece6'],borderWidth:2,borderColor:'#fff'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
-             plugins:{legend:{position:'right',labels:{boxWidth:10,boxHeight:10,font:{size:11},color:C.ink}}}}});
-
-  // 3. volume, last 30 days
-  const days=[],counts=[];
-  for(let i=29;i>=0;i--){
-    const d=new Date(); d.setDate(d.getDate()-i);
-    const key=d.toISOString().slice(0,10);
-    days.push(d.toLocaleDateString(undefined,{month:'short',day:'numeric'}));
-    counts.push(reqs.filter(r=>(r.created_at||'').slice(0,10)===key).length);
-  }
-  destroyChart('v');
-  CHARTS.v=new Chart(document.getElementById('chVolume'),{type:'line',
-    data:{labels:days,datasets:[{label:'Requests',data:counts,borderColor:C.green,
-          backgroundColor:'rgba(13,110,78,.10)',fill:true,tension:.32,pointRadius:0,
-          pointHoverRadius:4,borderWidth:2}]},
-    options:{...baseOpts,plugins:{legend:{display:false}},
-             scales:{...baseOpts.scales,
-                     x:{...baseOpts.scales.x,ticks:{...baseOpts.scales.x.ticks,maxTicksLimit:8}},
-                     y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,precision:0}}}}});
-
-  // 4. top materials
+  // 1. money by material
   const byMat={};
-  items.forEach(i=>{const k=(i.raw_name||'—').trim();byMat[k]=(byMat[k]||0)+(Number(i.expected_amount_aed)||0);});
-  const top=Object.entries(byMat).sort((a,b)=>b[1]-a[1]).slice(0,7);
-  destroyChart('m');
-  CHARTS.m=new Chart(document.getElementById('chMaterials'),{type:'bar',
-    data:{labels:top.length?top.map(t=>t[0]):['No items'],
-          datasets:[{label:'AED',data:top.length?top.map(t=>t[1]):[0],
-                     backgroundColor:C.blue,borderRadius:4,barPercentage:.72}]},
-    options:{...baseOpts,indexAxis:'y',plugins:{legend:{display:false}},
-             scales:{x:{beginAtZero:true,grid:{color:C.line},ticks:{color:C.muted,font:{size:10.5}}},
-                     y:{grid:{display:false},ticks:{color:C.ink,font:{size:11}}}}}});
+  its.forEach(i=>{const k=(i.raw_name||'—').trim();byMat[k]=(byMat[k]||0)+(Number(i.expected_amount_aed)||0);});
+  const top=Object.entries(byMat).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  kill('m');
+  CHARTS.m=new Chart(document.getElementById('chMoney'),{type:'bar',
+    data:{labels:top.length?top.map(t=>t[0]):['Nothing ordered yet'],
+          datasets:[{label:'AED',data:top.length?top.map(t=>t[1]):[0],backgroundColor:C.teal,borderRadius:4,barPercentage:.74}]},
+    options:{...gridOpts,indexAxis:'y',plugins:{legend:{display:false}},
+      scales:{x:{beginAtZero:true,grid:{color:C.line},ticks:{color:C.muted,font:{size:10.5}}},
+              y:{grid:{display:false},ticks:{color:C.ink,font:{size:11}}}}}});
+
+  // 2. quantity actually used (delivered)
+  const itemById={}; CACHE.items.forEach(i=>itemById[i.id]=i);
+  const scopedIds=new Set(its.map(i=>i.id));
+  const byQty={};
+  CACHE.ditems.forEach(d=>{
+    if(!scopedIds.has(d.request_item_id))return;
+    const ri=itemById[d.request_item_id]; if(!ri)return;
+    const k=(ri.raw_name||'—').trim();
+    byQty[k]=(byQty[k]||0)+(Number(d.received_qty)||0);
+  });
+  const topQ=Object.entries(byQty).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  kill('q');
+  CHARTS.q=new Chart(document.getElementById('chQty'),{type:'bar',
+    data:{labels:topQ.length?topQ.map(t=>t[0]):['Nothing delivered yet'],
+          datasets:[{label:'Qty received',data:topQ.length?topQ.map(t=>t[1]):[0],backgroundColor:C.sand,borderRadius:4,barPercentage:.74}]},
+    options:{...gridOpts,indexAxis:'y',plugins:{legend:{display:false}},
+      scales:{x:{beginAtZero:true,grid:{color:C.line},ticks:{color:C.muted,font:{size:10.5}}},
+              y:{grid:{display:false},ticks:{color:C.ink,font:{size:11}}}}}});
+
+  // 3. ordered vs billed
+  let labels,ordArr,billArr;
+  if(TAB==='all'){
+    labels=CACHE.projects.map(p=>p.name);
+    ordArr=CACHE.projects.map(p=>orderedValue(CACHE.requests.filter(r=>r.project_id===p.id)));
+    billArr=CACHE.projects.map(p=>billedValue(CACHE.requests.filter(r=>r.project_id===p.id)));
+  }else{
+    const sorted=[...rs].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    labels=sorted.map(r=>fmtDate(r.created_at).split(' ').slice(0,2).join(' '));
+    ordArr=sorted.map(r=>orderedValue([r]));
+    billArr=sorted.map(r=>billedValue([r]));
+  }
+  kill('s');
+  CHARTS.s=new Chart(document.getElementById('chSpend'),{type:'bar',
+    data:{labels:labels.length?labels:['No data'],datasets:[
+      {label:'Ordered',data:ordArr,backgroundColor:C.teal,borderRadius:4,barPercentage:.68},
+      {label:'Billed by supplier',data:billArr,backgroundColor:C.teal2,borderRadius:4,barPercentage:.68}]},
+    options:gridOpts});
+
+  // 4. money tied up, by project
+  const invoicedIds=new Set(CACHE.invoices.map(v=>v.request_id));
+  const owedByProj={};
+  (TAB==='all'?CACHE.requests:rs).forEach(r=>{
+    if(!['delivered','delivery_started'].includes(r.status))return;
+    if(invoicedIds.has(r.id))return;
+    const k=pName(r.project_id);
+    owedByProj[k]=(owedByProj[k]||0)+orderedValue([r]);
+  });
+  const ok=Object.keys(owedByProj);
+  kill('o');
+  CHARTS.o=new Chart(document.getElementById('chOwed'),{type:'doughnut',
+    data:{labels:ok.length?ok:['Nothing outstanding'],
+          datasets:[{data:ok.length?ok.map(k=>owedByProj[k]):[1],
+            backgroundColor:ok.length?[C.sand,C.teal,C.teal2,C.sand2,C.amber]:['#eeebe4'],
+            borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'right',labels:{boxWidth:10,boxHeight:10,font:{size:11},color:C.ink}}}}});
 }
 
-/* ---------- filters + requests table ---------- */
-function fillFilters(){
-  const ps=document.getElementById('reqProject');
-  const cur=ps.value;
-  ps.innerHTML='<option value="">All projects</option>'+
-    CACHE.projects.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
-  ps.value=cur;
-  const ss=document.getElementById('reqStatus');
-  const cur2=ss.value;
-  const sts=[...new Set(CACHE.requests.map(r=>r.status))];
-  ss.innerHTML='<option value="">All statuses</option>'+
-    sts.map(s=>'<option value="'+s+'">'+s.replace(/_/g,' ')+'</option>').join('');
-  ss.value=cur2;
+/* ---------- requests table ---------- */
+function fillStatusFilter(){
+  const ss=document.getElementById('reqStatus'), cur=ss.value;
+  const sts=[...new Set(scopedRequests().map(r=>r.status))];
+  ss.innerHTML='<option value="">All stages</option>'+sts.map(s=>'<option value="'+s+'">'+esc(stageName(s))+'</option>').join('');
+  ss.value=cur;
 }
 function sortBy(k){SORT.dir=(SORT.key===k)?-SORT.dir:-1;SORT.key=k;renderRequests();}
-
 function filteredRequests(){
   const q=(document.getElementById('reqSearch')?.value||'').toLowerCase().trim();
-  const pf=document.getElementById('reqProject')?.value||'';
   const sf=document.getElementById('reqStatus')?.value||'';
-  const items=CACHE.items||[];
-  const pn=id=>(CACHE.projects.find(p=>p.id===id)||{}).name||'';
-  let rows=CACHE.requests.filter(r=>{
-    if(pf&&r.project_id!==pf)return false;
+  let rows=scopedRequests().filter(r=>{
     if(sf&&r.status!==sf)return false;
     if(!q)return true;
-    if(pn(r.project_id).toLowerCase().includes(q))return true;
-    return items.some(i=>i.request_id===r.id&&(i.raw_name||'').toLowerCase().includes(q));
+    return CACHE.items.some(i=>i.request_id===r.id&&(i.raw_name||'').toLowerCase().includes(q));
   });
-  const val=r=>items.filter(i=>i.request_id===r.id).reduce((s,i)=>s+(Number(i.expected_amount_aed)||0),0);
-  const cnt=r=>items.filter(i=>i.request_id===r.id).length;
-  rows.sort((a,b)=>{
-    let x,y;
-    if(SORT.key==='project'){x=pn(a.project_id);y=pn(b.project_id);}
-    else if(SORT.key==='value'){x=val(a);y=val(b);}
+  const val=r=>orderedValue([r]), cnt=r=>CACHE.items.filter(i=>i.request_id===r.id).length;
+  rows.sort((a,b)=>{let x,y;
+    if(SORT.key==='value'){x=val(a);y=val(b);}
     else if(SORT.key==='items'){x=cnt(a);y=cnt(b);}
-    else if(SORT.key==='status'){x=a.status;y=b.status;}
-    else {x=a.created_at||'';y=b.created_at||'';}
-    return (x<y?-1:x>y?1:0)*SORT.dir;
-  });
+    else if(SORT.key==='status'){x=stageName(a.status);y=stageName(b.status);}
+    else{x=a.created_at||'';y=b.created_at||'';}
+    return (x<y?-1:x>y?1:0)*SORT.dir;});
   return rows;
 }
-
 function renderRequests(){
   const el=document.getElementById('requestsBox');
-  const items=CACHE.items||[];
-  const pn=id=>(CACHE.projects.find(p=>p.id===id)||{}).name||'—';
-  const badge=s=>({awaiting_file:'b-orange',parsing:'b-orange',delivery_started:'b-blue',parse_failed:'b-red',
-                   on_hold:'b-red',delivered:'b-green',closed:'b-grey',invoiced:'b-grey',parsed:'b-blue'})[s]||'b-grey';
+  const pName=id=>(CACHE.projects.find(p=>p.id===id)||{}).name||'—';
   const rows=filteredRequests();
-  document.getElementById('reqCount').textContent=rows.length+' of '+CACHE.requests.length+' shown';
-  if(!CACHE.requests.length){el.innerHTML='<div class="empty">No requests yet. Technicians submit them over WhatsApp.</div>';return;}
-  if(!rows.length){el.innerHTML='<div class="empty">Nothing matches those filters.</div>';return;}
+  document.getElementById('reqCount').textContent=rows.length+' of '+scopedRequests().length+' shown';
+  if(!scopedRequests().length){el.innerHTML='<div class="empty">No material requests for this project yet.</div>';return;}
+  if(!rows.length){el.innerHTML='<div class="empty">Nothing matches that search.</div>';return;}
   const arrow=k=>SORT.key===k?(SORT.dir===1?' ↑':' ↓'):'';
   el.innerHTML='<table><thead><tr>'+
-    '<th class="sortable" onclick="sortBy(\'project\')">Project'+arrow('project')+'</th>'+
-    '<th class="sortable" onclick="sortBy(\'status\')">Status'+arrow('status')+'</th>'+
-    '<th class="sortable num" onclick="sortBy(\'items\')">Items'+arrow('items')+'</th>'+
-    '<th class="sortable num" onclick="sortBy(\'value\')">Expected AED'+arrow('value')+'</th>'+
-    '<th class="sortable" onclick="sortBy(\'created_at\')">Created'+arrow('created_at')+'</th><th></th></tr></thead><tbody>'+
+    (TAB==='all'?'<th>Project</th>':'')+
+    '<th class="sortable" onclick="sortBy(\'status\')">Stage'+arrow('status')+'</th>'+
+    '<th class="sortable num" onclick="sortBy(\'items\')">Materials'+arrow('items')+'</th>'+
+    '<th class="sortable num" onclick="sortBy(\'value\')">Ordered AED'+arrow('value')+'</th>'+
+    '<th class="num">Billed AED</th>'+
+    '<th class="sortable" onclick="sortBy(\'created_at\')">Raised'+arrow('created_at')+'</th><th></th></tr></thead><tbody>'+
     rows.map(r=>{
-      const mine=items.filter(i=>i.request_id===r.id);
-      const total=mine.reduce((s,i)=>s+(Number(i.expected_amount_aed)||0),0);
-      const head='<tr><td><b>'+esc(pn(r.project_id))+'</b></td>'+
-        '<td><span class="badge '+badge(r.status)+'">'+r.status.replace(/_/g,' ')+'</span></td>'+
+      const mine=CACHE.items.filter(i=>i.request_id===r.id);
+      const tot=mine.reduce((s,i)=>s+(Number(i.expected_amount_aed)||0),0);
+      const bill=billedValue([r]);
+      const head='<tr>'+(TAB==='all'?'<td><b>'+esc(pName(r.project_id))+'</b></td>':'')+
+        '<td><span class="badge '+stageClass(r.status)+'">'+esc(stageName(r.status))+'</span></td>'+
         '<td class="num">'+(mine.length||'—')+'</td>'+
-        '<td class="num">'+(mine.length?money(total):'—')+'</td>'+
+        '<td class="num">'+(mine.length?aed(tot):'—')+'</td>'+
+        '<td class="num">'+(bill?aed(bill):'—')+'</td>'+
         '<td>'+fmtDate(r.created_at)+'</td>'+
-        '<td>'+(mine.length?'<button class="secondary tiny" onclick="toggleItems(\''+r.id+'\')">View items</button>':'')+'</td></tr>';
+        '<td>'+(mine.length?'<button class="secondary tiny" onclick="toggleItems(\''+r.id+'\')">See materials</button>':'')+'</td></tr>';
       if(!mine.length)return head;
-      const sub=mine.map(i=>'<tr><td class="num">'+(i.line_no==null?'—':i.line_no)+'</td><td>'+esc(i.raw_name)+
-        '</td><td class="num">'+num(i.requested_qty)+'</td><td>'+esc(i.unit||'')+
-        '</td><td class="num">'+money(i.expected_amount_aed)+'</td></tr>').join('');
-      return head+'<tr id="items-'+r.id+'" style="display:none;"><td colspan="6" style="padding:0 0 12px;">'+
-        '<div class="subtable"><table><thead><tr><th class="num">#</th><th>Material</th><th class="num">Qty</th>'+
-        '<th>Unit</th><th class="num">Expected AED</th></tr></thead><tbody>'+sub+'</tbody>'+
-        '<tfoot><tr><td colspan="4" class="num" style="font-weight:650;">Total</td>'+
-        '<td class="num" style="font-weight:650;">'+money(total)+'</td></tr></tfoot></table></div></td></tr>';
+      const dByItem={}; CACHE.ditems.forEach(d=>dByItem[d.request_item_id]=d);
+      const sub=mine.map(i=>{
+        const d=dByItem[i.id];
+        const got=d?Number(d.received_qty):null;
+        const short=(d&&Number(d.qty_variance)!==0)?' <span class="badge b-red">'+(Number(d.qty_variance)>0?'+':'')+d.qty_variance+'</span>':'';
+        return '<tr><td class="num">'+(i.line_no==null?'—':i.line_no)+'</td><td>'+esc(i.raw_name)+
+          '</td><td class="num">'+num(i.requested_qty)+'</td>'+
+          '<td class="num">'+(got==null?'<span style="color:var(--muted)">not yet</span>':num(got)+short)+'</td>'+
+          '<td>'+esc(i.unit||'')+'</td><td class="num">'+aed(i.expected_amount_aed)+'</td></tr>';
+      }).join('');
+      const span=TAB==='all'?7:6;
+      return head+'<tr id="items-'+r.id+'" style="display:none;"><td colspan="'+span+'" style="padding:0 0 12px;">'+
+        '<div class="subtable"><table><thead><tr><th class="num">#</th><th>Material</th><th class="num">Ordered</th>'+
+        '<th class="num">Received</th><th>Unit</th><th class="num">AED</th></tr></thead><tbody>'+sub+'</tbody>'+
+        '<tfoot><tr><td colspan="5" class="num" style="font-weight:650;">Total ordered</td>'+
+        '<td class="num" style="font-weight:650;">'+aed(tot)+'</td></tr></tfoot></table></div></td></tr>';
     }).join('')+'</tbody></table>';
 }
 function toggleItems(id){const r=document.getElementById('items-'+id);if(r)r.style.display=(r.style.display==='none')?'table-row':'none';}
 
 function exportCsv(){
-  const items=CACHE.items||[];
-  const pn=id=>(CACHE.projects.find(p=>p.id===id)||{}).name||'';
-  const out=[['Project','Status','Created','Line','Material','Qty','Unit','Expected AED']];
+  const pName=id=>(CACHE.projects.find(p=>p.id===id)||{}).name||'';
+  const dByItem={}; CACHE.ditems.forEach(d=>dByItem[d.request_item_id]=d);
+  const out=[['Project','Stage','Raised','Line','Material','Ordered qty','Received qty','Unit','Ordered AED']];
   filteredRequests().forEach(r=>{
-    const mine=items.filter(i=>i.request_id===r.id);
-    if(!mine.length){out.push([pn(r.project_id),r.status,r.created_at,'','','','','']);return;}
-    mine.forEach(i=>out.push([pn(r.project_id),r.status,r.created_at,i.line_no,i.raw_name,
-      i.requested_qty,i.unit,i.expected_amount_aed]));
+    const mine=CACHE.items.filter(i=>i.request_id===r.id);
+    if(!mine.length){out.push([pName(r.project_id),stageName(r.status),r.created_at,'','','','','','']);return;}
+    mine.forEach(i=>{const d=dByItem[i.id];
+      out.push([pName(r.project_id),stageName(r.status),r.created_at,i.line_no,i.raw_name,
+                i.requested_qty,d?d.received_qty:'',i.unit,i.expected_amount_aed]);});
   });
   const csv=out.map(row=>row.map(c=>'"'+String(c??'').replace(/"/g,'""')+'"').join(',')).join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download='cns-material-requests-'+new Date().toISOString().slice(0,10)+'.csv';
-  a.click();
-  toast('CSV exported');
+  a.download='cns-materials-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); toast('Spreadsheet downloaded');
 }
 
 /* ---------- technicians ---------- */
@@ -551,7 +627,7 @@ async function addTechnician(){
   const phone=document.getElementById('techPhone').value.trim().replace(/[^0-9]/g,'');
   if(!name||!phone){msg.textContent='Enter both a name and a phone number.';return;}
   const {error}=await db.from('users').insert({full_name:name,role:'technician',phone_e164:phone,is_active:true,created_by:ME.id});
-  if(error){msg.textContent='Error: '+(error.message||'could not add (is the number already registered?)');return;}
+  if(error){msg.textContent='Error: '+(error.message||'could not add');return;}
   msg.textContent='Added ✓';
   document.getElementById('techName').value='';document.getElementById('techPhone').value='';
   toast('Technician added');loadTechnicians();
@@ -561,83 +637,95 @@ async function toggleTechnician(id,active){
   toast(error?'Failed: '+error.message:(active?'Activated':'Deactivated'));if(!error)loadTechnicians();
 }
 
-/* ---------- alerts / lockouts ---------- */
+/* ---------- alerts / deadlines ---------- */
+function alertText(a){
+  const p=a.payload||{};
+  if(a.type==='quantity_discrepancy')
+    return 'Delivery didn’t match the order: <b>'+esc(p.material||'item')+'</b> — ordered '+
+           esc(p.requested)+', received '+esc(p.received)+'.';
+  if(a.type==='high_price')
+    return 'Supplier price jumped: <b>'+esc(p.material||'item')+'</b> from '+esc(p.supplier||'supplier')+
+           ' at '+aed(p.invoiced_price)+' AED vs usual '+aed(p.avg_price)+' AED ('+esc(p.increase_pct)+'% up).';
+  return esc(JSON.stringify(p));
+}
 function renderAlerts(alerts){
+  const list=CACHE.alerts||[];
   const el=document.getElementById('alertsBox');
-  if(!alerts.length){el.innerHTML='<div class="empty">No open alerts.</div>';return;}
+  if(!list.length){el.innerHTML='<div class="empty">Nothing needs checking right now.</div>';return;}
   const can=ME.role==='master_admin';
-  el.innerHTML='<table><thead><tr><th>Type</th><th>Severity</th><th>Details</th><th>Raised</th>'+(can?'<th></th>':'')+'</tr></thead><tbody>'+
-    alerts.map(a=>'<tr><td><b>'+esc(a.type)+'</b></td><td>'+'●'.repeat(a.severity)+
-      '</td><td style="font-size:12px;color:var(--muted)">'+esc(JSON.stringify(a.payload))+'</td><td>'+fmtDate(a.created_at)+'</td>'+
-      (can?'<td><button class="secondary tiny" onclick="resolveAlert(\''+a.id+'\')">Resolve</button></td>':'')+'</tr>').join('')+'</tbody></table>';
+  el.innerHTML='<table><thead><tr><th>What happened</th><th>Priority</th><th>When</th>'+(can?'<th></th>':'')+'</tr></thead><tbody>'+
+    list.map(a=>'<tr><td>'+alertText(a)+'</td><td>'+
+      (a.severity>=3?'<span class="badge b-red">high</span>':a.severity===2?'<span class="badge b-amber">medium</span>':'<span class="badge b-grey">low</span>')+
+      '</td><td>'+fmtDate(a.created_at)+'</td>'+
+      (can?'<td><button class="secondary tiny" onclick="resolveAlert(\''+a.id+'\')">Mark done</button></td>':'')+'</tr>').join('')+'</tbody></table>';
 }
 async function resolveAlert(id){
   const {error}=await db.from('alerts').update({resolved:true,resolved_by:ME.id}).eq('id',id);
-  toast(error?'Failed: '+error.message:'Alert resolved');if(!error)loadAll();
+  toast(error?'Failed: '+error.message:'Marked done');if(!error)loadAll();
 }
-function renderLockouts(rows){
+function renderLockouts(){
+  const rows=CACHE.lockouts||[];
   const el=document.getElementById('lockoutsBox');
-  if(!rows.length){el.innerHTML='<div class="empty">No lockout timers.</div>';return;}
+  const live=rows.filter(t=>!t.satisfied_at);
+  if(!live.length){el.innerHTML='<div class="empty">No invoice deadlines running.</div>';return;}
   const can=ME.role==='master_admin';
-  const stateOf=t=>t.satisfied_at?'<span class="badge b-green">satisfied</span>'
-    :t.locked?'<span class="badge b-red">LOCKED</span>'
-    :(new Date(t.deadline_at)<new Date()?'<span class="badge b-red">expired</span>':'<span class="badge b-orange">counting down</span>');
-  el.innerHTML='<table><thead><tr><th>Deadline</th><th>Status</th><th>Day 1</th><th>Day 2</th>'+(can?'<th></th>':'')+'</tr></thead><tbody>'+
-    rows.map(t=>'<tr><td>'+fmtDate(t.deadline_at)+'</td><td>'+stateOf(t)+'</td><td>'+(t.day1_reminder_sent?'✓':'—')+
-      '</td><td>'+(t.day2_reminder_sent?'✓':'—')+'</td>'+
-      (can&&t.locked&&!t.overridden_at?'<td><button class="secondary tiny" onclick="overrideLockout(\''+t.id+'\',\''+t.manager_id+'\')">Override</button></td>':(can?'<td></td>':''))+
-      '</tr>').join('')+'</tbody></table>';
+  const hoursLeft=t=>Math.round((new Date(t.deadline_at)-new Date())/36e5);
+  el.innerHTML='<table><thead><tr><th>Time left</th><th>Status</th><th>Deadline</th><th>Reminders</th>'+(can?'<th></th>':'')+'</tr></thead><tbody>'+
+    live.map(t=>{
+      const h=hoursLeft(t);
+      const st=t.locked?'<span class="badge b-red">manager locked</span>'
+        :h<0?'<span class="badge b-red">overdue</span>'
+        :h<12?'<span class="badge b-amber">urgent</span>':'<span class="badge b-teal">on track</span>';
+      return '<tr><td><b>'+(h<0?'overdue':h+' hours')+'</b></td><td>'+st+'</td><td>'+fmtDate(t.deadline_at)+'</td>'+
+        '<td>'+((t.day1_reminder_sent?'1st sent':'—')+' · '+(t.day2_reminder_sent?'2nd sent':'—'))+'</td>'+
+        (can&&t.locked&&!t.overridden_at?'<td><button class="secondary tiny" onclick="overrideLockout(\''+t.id+'\',\''+t.manager_id+'\')">Unlock</button></td>':(can?'<td></td>':''))+'</tr>';
+    }).join('')+'</tbody></table>';
 }
 async function overrideLockout(timerId,managerId){
   const e1=(await db.from('lockout_timers').update({overridden_by:ME.id,overridden_at:new Date().toISOString()}).eq('id',timerId)).error;
   const e2=(await db.from('users').update({is_locked:false,locked_at:null}).eq('id',managerId)).error;
-  toast(e1||e2?'Failed: '+((e1||e2).message):'Lockout overridden, manager unlocked');if(!e1&&!e2)loadAll();
+  toast(e1||e2?'Failed':'Unlocked');if(!e1&&!e2)loadAll();
 }
 async function loadLockedUsers(){
   const {data}=await db.from('users').select('id, full_name, role, is_locked, locked_at').eq('is_locked',true);
   const el=document.getElementById('lockedUsersBox');
   if(!data||!data.length){el.innerHTML='<div class="empty">Nobody is locked.</div>';return;}
-  el.innerHTML='<table><thead><tr><th>Name</th><th>Role</th><th>Locked at</th><th></th></tr></thead><tbody>'+
-    data.map(u=>'<tr><td>'+esc(u.full_name)+'</td><td>'+esc(u.role)+'</td><td>'+fmtDate(u.locked_at)+
+  el.innerHTML='<table><thead><tr><th>Name</th><th>Role</th><th>Locked since</th><th></th></tr></thead><tbody>'+
+    data.map(u=>'<tr><td>'+esc(u.full_name)+'</td><td>'+esc(u.role.replace('_',' '))+'</td><td>'+fmtDate(u.locked_at)+
       '</td><td><button class="secondary tiny" onclick="unlockUser(\''+u.id+'\')">Unlock</button></td></tr>').join('')+'</tbody></table>';
 }
 async function unlockUser(id){
   const {error}=await db.from('users').update({is_locked:false,locked_at:null}).eq('id',id);
-  toast(error?'Failed: '+error.message:'Manager unlocked');if(!error)loadAll();
+  toast(error?'Failed':'Unlocked');if(!error)loadAll();
 }
 
 /* ---------- invoice + ALAAN ---------- */
 function fillForms(){
-  const pn=id=>(CACHE.projects.find(p=>p.id===id)||{}).name||'—';
+  const pName=id=>(CACHE.projects.find(p=>p.id===id)||{}).name||'—';
   const eligible=CACHE.requests.filter(r=>['delivered','delivery_started','parsed'].includes(r.status));
   document.getElementById('invRequest').innerHTML=
-    eligible.map(r=>'<option value="'+r.id+'">'+esc(pn(r.project_id))+' · '+r.status+' · '+fmtDate(r.created_at)+'</option>').join('')
-    ||'<option value="">(no eligible requests)</option>';
+    eligible.map(r=>'<option value="'+r.id+'">'+esc(pName(r.project_id))+' · '+esc(stageName(r.status))+' · '+fmtDate(r.created_at)+'</option>').join('')
+    ||'<option value="">(nothing waiting for an invoice)</option>';
   document.getElementById('alaanRequest').innerHTML=
-    CACHE.requests.map(r=>'<option value="'+r.id+'">'+esc(pn(r.project_id))+' · '+r.status+'</option>').join('');
+    CACHE.requests.map(r=>'<option value="'+r.id+'">'+esc(pName(r.project_id))+' · '+esc(stageName(r.status))+'</option>').join('');
   document.getElementById('supplierList').innerHTML=CACHE.suppliers.map(s=>'<option value="'+esc(s.name)+'">').join('');
   if(!document.querySelector('#invItems .itemrow'))addInvItem();
 }
 function addInvItem(){
-  const div=document.createElement('div');
-  div.className='itemrow';
+  const div=document.createElement('div');div.className='itemrow';
   div.innerHTML='<input list="materialList" placeholder="material name" class="it-name" />'+
     '<input type="number" step="0.01" placeholder="qty" class="it-qty" oninput="calcTotal()" />'+
     '<input type="number" step="0.01" placeholder="unit AED" class="it-price" oninput="calcTotal()" />'+
     '<button class="secondary tiny" onclick="this.parentNode.remove();calcTotal()">×</button>';
   document.getElementById('invItems').appendChild(div);
   if(!document.getElementById('materialList')){
-    const dl=document.createElement('datalist');dl.id='materialList';document.body.appendChild(dl);
-  }
+    const dl=document.createElement('datalist');dl.id='materialList';document.body.appendChild(dl);}
   document.getElementById('materialList').innerHTML=CACHE.materials.map(m=>'<option value="'+esc(m.canonical_name)+'">').join('');
 }
 function calcTotal(){
-  let t=0;
-  document.querySelectorAll('#invItems .itemrow').forEach(r=>{
-    t+=(Number(r.querySelector('.it-qty').value)||0)*(Number(r.querySelector('.it-price').value)||0);
-  });
-  document.getElementById('invTotal').textContent=t.toFixed(2);
-  return t;
+  let t=0;document.querySelectorAll('#invItems .itemrow').forEach(r=>{
+    t+=(Number(r.querySelector('.it-qty').value)||0)*(Number(r.querySelector('.it-price').value)||0);});
+  document.getElementById('invTotal').textContent=t.toFixed(2);return t;
 }
 async function submitInvoice(){
   const msg=document.getElementById('invMsg');
@@ -668,8 +756,7 @@ async function submitInvoice(){
     if(inv.error)throw inv.error;
     const items=await db.from('invoice_items').insert(lines.map(l=>({...l,invoice_id:inv.data.id})));
     if(items.error)throw items.error;
-    msg.textContent='Invoice submitted ✓ (price audit + petty cash ran automatically)';
-    toast('Invoice submitted');loadAll();
+    msg.textContent='Invoice saved ✓';toast('Invoice saved');loadAll();
   }catch(e){msg.textContent='Error: '+(e.message||e);}
 }
 async function submitAlaan(){
@@ -678,8 +765,8 @@ async function submitAlaan(){
   const amt=Number(document.getElementById('alaanAmount').value);
   if(!reqId||!amt){msg.textContent='Pick a request and enter an amount.';return;}
   const {error}=await db.from('alaan_funding').insert({request_id:reqId,amount_aed:amt,entered_by:ME.id});
-  msg.textContent=error?'Error: '+error.message:'Funding recorded ✓';
-  if(!error){toast('ALAAN funding recorded');loadAll();}
+  msg.textContent=error?'Error: '+error.message:'Recorded ✓';
+  if(!error){toast('Card spend recorded');loadAll();}
 }
 
 boot();
