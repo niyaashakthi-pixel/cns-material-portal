@@ -548,6 +548,20 @@ function ivAdd(){const d=document.createElement('div');d.className='row3';
   document.getElementById('matList').innerHTML=C.materials.map(m=>'<option value="'+esc(m.canonical_name)+'">').join('');}
 function ivTot(){let t=0;document.querySelectorAll('#ivItems .row3').forEach(r=>t+=(+r.querySelector('.v-q').value||0)*(+r.querySelector('.v-p').value||0));
   document.getElementById('ivTot').textContent=t.toFixed(2);return t;}
+/* Look the row up in the database rather than the local cache, then insert only
+   if it genuinely is not there. The cache can be stale or trimmed by RLS, which
+   made this fail with a duplicate-key error on names that already existed. */
+async function findOrAdd(table,col,value){
+  const hit=await db.from(table).select('*').ilike(col,value).limit(1);
+  if(hit.error)throw hit.error;
+  if(hit.data&&hit.data.length)return hit.data[0];
+  const ins=await db.from(table).insert({[col]:value}).select().single();
+  if(!ins.error)return ins.data;
+  if(ins.error.code==='23505'){                       // someone else added it first
+    const again=await db.from(table).select('*').ilike(col,value).limit(1);
+    if(again.data&&again.data.length)return again.data[0];}
+  throw ins.error;}
+
 async function saveInvoice(){
   const msg=document.getElementById('ivMsg');
   try{
@@ -560,15 +574,13 @@ async function saveInvoice(){
       throw new Error('invoice is dated before the request was raised ('+day(req.created_at)+')');
     if(d>new Date(Date.now()+864e5))throw new Error('invoice cannot be dated in the future');
     const mn=document.getElementById('ivMerch').value.trim();if(!mn)throw new Error('merchant name required');
-    let m=C.merchants.find(x=>x.name.toLowerCase()===mn.toLowerCase());
-    if(!m){const r=await db.from('suppliers').insert({name:mn}).select().single();if(r.error)throw r.error;m=r.data;}
+    const m=await findOrAdd('suppliers','name',mn);
     const lines=[];
     for(const row of document.querySelectorAll('#ivItems .row3')){
       const n=row.querySelector('.v-n').value.trim().toLowerCase();
       const q=+row.querySelector('.v-q').value,p=+row.querySelector('.v-p').value;
       if(!n||!q||!p)continue;
-      let mat=C.materials.find(x=>x.canonical_name===n);
-      if(!mat){const r=await db.from('materials').insert({canonical_name:n}).select().single();if(r.error)throw r.error;mat=r.data;}
+      const mat=await findOrAdd('materials','canonical_name',n);
       lines.push({material_id:mat.id,qty:q,unit_price_aed:p});}
     if(!lines.length)throw new Error('add at least one complete line');
     const total=ivTot();
