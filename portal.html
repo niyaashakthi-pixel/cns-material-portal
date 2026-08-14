@@ -419,10 +419,20 @@ function approvalTable(rows,canAct){
       '<td class="n">'+aed(valOf([r]))+'</td><td>'+fmt(r.created_at)+'</td>'+
       (canAct?'<td class="n"><button class="ok sm" onclick="event.stopPropagation();approve(\''+r.id+'\')">Approve</button></td>':'')+
       '</tr>').join('')+'</tbody></table>';}
+/* A blocked update is NOT an error in PostgREST — the row simply falls outside the
+   policy, so you get success with zero rows back. Without .select() and this check
+   the portal happily reports "saved" while nothing changed. Every write goes
+   through here. */
+async function saveRow(q,what){
+  const {data,error}=await q.select();
+  if(error){toast('Could not save '+what+': '+error.message);return false;}
+  if(!data||!data.length){toast('Not saved — you do not have permission to change '+what);return false;}
+  return true;}
+
 async function approve(id){
   if(!isMD()){toast('Only the Managing Director approves requests');return;}
-  const {error}=await db.from('material_requests').update({approved_at:new Date().toISOString(),approved_by:ME.id}).eq('id',id);
-  if(error){toast('Could not approve: '+error.message);return;}
+  const ok=await saveRow(db.from('material_requests').update({approved_at:new Date().toISOString(),approved_by:ME.id}).eq('id',id),'this approval');
+  if(!ok)return;
   toast('Approved — now with Sadique for invoicing');closeOver();loadAll();}
 
 /* ---------- REQUESTS ---------- */
@@ -652,8 +662,9 @@ function pgAdmin(){
           '<td class="n"><button class="g sm" onclick="togTech(\''+u.id+'\','+(!u.is_active)+')">'+(u.is_active?'Deactivate':'Activate')+'</button></td></tr>').join('')+
         '</tbody></table>':'<div class="empty">None yet.</div>')+'</div></div>')+
     card('Budgets','Set the material budget for each site.',budgetTable()));}
-async function unlock(id){const {error}=await db.from('users').update({is_locked:false,locked_at:null}).eq('id',id);
-  toast(error?'Failed':'Unlocked');if(!error)loadAll();}
+async function unlock(id){
+  const ok=await saveRow(db.from('users').update({is_locked:false,locked_at:null}).eq('id',id),'this lockout');
+  if(ok){toast('Unlocked');loadAll();}}
 async function addTech(){
   const m=document.getElementById('tMsg'),n=document.getElementById('tName').value.trim();
   const p=document.getElementById('tPhone').value.trim().replace(/[^0-9]/g,'');
@@ -661,15 +672,17 @@ async function addTech(){
   const {error}=await db.from('users').insert({full_name:n,role:'technician',phone_e164:p,is_active:true,created_by:ME.id});
   if(error){m.textContent='Error: '+error.message;return;}
   toast('Technician added');loadAll();}
-async function togTech(id,a){await db.from('users').update({is_active:a}).eq('id',id);toast(a?'Activated':'Deactivated');loadAll();}
+async function togTech(id,a){
+  const ok=await saveRow(db.from('users').update({is_active:a}).eq('id',id),'this technician');
+  if(ok){toast(a?'Activated':'Deactivated');loadAll();}}
 async function editBudget(id){
   if(!isMD())return;
   const p=C.projects.find(x=>x.id===id);if(!p)return;
   const v=prompt('Material budget for '+p.name+' in AED:',p.material_budget_aed||'');
   if(v===null)return;const n=Number(String(v).replace(/[^0-9.]/g,''));
   if(!n||n<=0){toast('Enter a number');return;}
-  const {error}=await db.from('projects').update({material_budget_aed:n}).eq('id',id);
-  toast(error?'Failed':'Budget updated');if(!error)loadAll();}
+  const ok=await saveRow(db.from('projects').update({material_budget_aed:n}).eq('id',id),'budgets');
+  if(ok){toast('Budget set to '+aed0(n)+' AED');loadAll();}}
 
 /* ---------- slide-over ---------- */
 function openOver(t,s,h){document.getElementById('ovT').innerHTML=t;document.getElementById('ovS').innerHTML=s||'';
