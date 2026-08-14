@@ -105,6 +105,17 @@
   .note{font-size:11px;color:var(--muted);line-height:1.7;margin-top:10px;}
   .note b{color:var(--ink2);}
 
+  .fitem{display:flex;gap:11px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line2);}
+  .fitem:last-child{border-bottom:none;}
+  .fitem b{font-size:12.5px;font-weight:600;display:block;}
+  .fitem .fs{font-size:11px;color:var(--muted);margin-top:1px;}
+  .fthumb{width:62px;height:62px;object-fit:cover;border-radius:6px;border:1px solid var(--line);
+    display:block;background:var(--surface2);transition:transform .12s;}
+  .fthumb:hover{transform:scale(1.03);}
+  .fdoc{width:62px;height:62px;border-radius:6px;border:1px solid var(--line);background:var(--surface2);
+    display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.06em;}
+  .drop{border:1px dashed var(--line);border-radius:7px;padding:11px;background:var(--surface2);margin-top:12px;}
+
   .scrim{position:fixed;inset:0;background:rgba(28,25,23,.3);opacity:0;pointer-events:none;transition:.22s;z-index:80;}
   .scrim.on{opacity:1;pointer-events:auto;}
   .over{position:fixed;top:0;right:0;height:100%;width:min(600px,100%);background:var(--surface);
@@ -530,7 +541,9 @@ function pgInvoices(){
       '<div class="fld"><label>Merchant</label><input id="ivMerch" list="merchList" placeholder="who you bought from" /><datalist id="merchList">'+
         C.merchants.map(s=>'<option value="'+esc(s.name)+'">').join('')+'</datalist></div>'+
       '<div class="fld"><label>Invoice date</label><input id="ivDate" type="date" /></div>'+
-      '<div class="fld"><label>Invoice reference / file path</label><input id="ivRef" placeholder="invoices/xxx.pdf" /></div>'+
+      '<div class="fld"><label>Photo or PDF of the merchant invoice</label>'+
+        '<input type="file" id="ivFile" accept="image/*,.pdf" style="padding:5px;" />'+
+        '<div style="font-size:10.5px;color:var(--faint);margin-top:3px;">Optional now — you can attach it later from the request.</div></div>'+
       '<label>Lines</label><div id="ivItems"></div><button class="g sm" onclick="ivAdd()">+ Add line</button>'+
       '<div style="margin:11px 0;">Total: <b id="ivTot">0.00</b> AED</div>'+
       '<button onclick="saveInvoice()">Save invoice</button><p id="ivMsg" style="font-size:11.5px;color:var(--teal);"></p>'+
@@ -596,8 +609,20 @@ async function saveInvoice(){
     const total=ivTot();
     const dup=C.invoices.find(v=>v.request_id===rid&&v.supplier_id===m.id&&Math.abs(+v.total_amount_aed-total)<0.01);
     if(dup&&!confirm('An invoice for this request, merchant and amount already exists. Save anyway?'))return;
+    /* Upload the invoice image before writing the row, so the row never points
+       at a file that failed to arrive. */
+    let receiptPath='receipts/pending';
+    const f=document.getElementById('ivFile').files[0];
+    if(f){
+      if(f.size>15*1024*1024)throw new Error('that file is over 15 MB');
+      msg.textContent='Uploading the invoice…';
+      const safe=f.name.replace(/[^a-zA-Z0-9._-]/g,'_').slice(-60);
+      receiptPath=rid+'/'+Date.now()+'-'+safe;
+      const up=await db.storage.from('receipts').upload(receiptPath,f,{contentType:f.type||undefined});
+      if(up.error)throw up.error;}
+
     const inv=await db.from('invoices').insert({request_id:rid,supplier_id:m.id,submitted_by:ME.id,
-      receipt_file_path:document.getElementById('ivRef').value.trim()||'invoices/pending.pdf',
+      receipt_file_path:receiptPath,
       total_amount_aed:total,submitted_at:d.toISOString()}).select().single();
     if(inv.error)throw inv.error;
     const it=await db.from('invoice_items').insert(lines.map(l=>({...l,invoice_id:inv.data.id})));
@@ -691,12 +716,72 @@ function openOver(t,s,h){document.getElementById('ovT').innerHTML=t;document.get
 function closeOver(){document.getElementById('over').classList.remove('on');document.getElementById('scrim').classList.remove('on');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeOver();});
 
-async function fileLink(bucket,path,label){
+/* ---------- files ----------
+   Three private buckets: 'requests' (the technician's form), 'delivery-photos'
+   (proof of what arrived) and 'receipts' (the merchant invoice). Nothing is
+   public — every link below is a signed URL that expires in ten minutes. */
+const IS_IMG=/\.(jpe?g|png|webp|gif|heic|heif)$/i;
+const BUCKETS=[['delivery-photos','Delivery photo'],['receipts','Merchant invoice'],['requests','Request form']];
+
+async function fileCard(bucket,path,label,sub){
   if(!path)return '';
-  try{const {data}=await db.storage.from(bucket).createSignedUrl(path,300);
-    if(data&&data.signedUrl)return '<a class="lnk" href="'+data.signedUrl+'" target="_blank" download>'+label+'</a>';
-  }catch(e){}
-  return '<span style="color:var(--faint)">'+label+' (file not in storage)</span>';}
+  let url=null;
+  try{const {data}=await db.storage.from(bucket).createSignedUrl(path,600);url=data&&data.signedUrl;}catch(e){}
+  if(!url)return '<div class="fitem"><div class="fdoc">?</div><div style="flex:1;"><b>'+esc(label)+
+    '</b><div class="fs">recorded, but the file is not in storage</div></div></div>';
+  const img=IS_IMG.test(path);
+  return '<div class="fitem">'+
+    (img?'<a href="'+url+'" target="_blank" rel="noopener"><img class="fthumb" src="'+url+'" alt="'+esc(label)+'" /></a>'
+        :'<a href="'+url+'" target="_blank" rel="noopener"><div class="fdoc">FILE</div></a>')+
+    '<div style="flex:1;min-width:0;"><b>'+esc(label)+'</b><div class="fs">'+esc(sub||'')+'</div></div>'+
+    '<a class="lnk" href="'+url+'" target="_blank" rel="noopener" download>Download</a></div>';}
+
+function uploadBox(reqId){
+  if(readOnly())return '';
+  return '<div class="drop"><label>Attach a file to this request</label>'+
+    '<div style="display:flex;gap:6px;align-items:center;">'+
+      '<select id="upKind" style="flex:1;">'+BUCKETS.map(b=>'<option value="'+b[0]+'">'+b[1]+'</option>').join('')+'</select>'+
+      '<input type="file" id="upFile" style="flex:2;padding:4px;" accept="image/*,.pdf" />'+
+      '<button class="sm" onclick="doUpload(\''+reqId+'\')">Upload</button></div>'+
+    '<div id="upMsg" style="font-size:11px;color:var(--teal);margin-top:6px;"></div>'+
+    '<div class="fs" style="font-size:10.5px;color:var(--faint);margin-top:4px;">'+
+      'Photos of a delivery should show the timestamp. Up to 15 MB.</div></div>';}
+
+async function doUpload(reqId){
+  const m=document.getElementById('upMsg');
+  try{
+    const bucket=document.getElementById('upKind').value;
+    const f=document.getElementById('upFile').files[0];
+    if(!f)throw new Error('choose a file first');
+    if(f.size>15*1024*1024)throw new Error('that file is over 15 MB');
+    m.textContent='Uploading…';
+    const safe=f.name.replace(/[^a-zA-Z0-9._-]/g,'_').slice(-60);
+    const path=reqId+'/'+Date.now()+'-'+safe;
+    const up=await db.storage.from(bucket).upload(path,f,{contentType:f.type||undefined});
+    if(up.error)throw up.error;
+
+    /* The file is in storage; now point the right row at it, so it shows up
+       against this request rather than floating unattached in a bucket. */
+    if(bucket==='requests'){
+      if(!await saveRow(db.from('material_requests').update({raw_file_path:path}).eq('id',reqId),'this request'))return;
+    }else if(bucket==='receipts'){
+      const inv=C.invoices.find(v=>v.request_id===reqId);
+      if(!inv)throw new Error('there is no invoice on this request yet — raise it in the Invoices tab first');
+      if(!await saveRow(db.from('invoices').update({receipt_file_path:path}).eq('id',inv.id),'this invoice'))return;
+    }else{
+      const r=C.requests.find(x=>x.id===reqId);
+      let d=C.deliveries.find(x=>x.request_id===reqId);
+      if(!d){
+        const ins=await db.from('deliveries').insert({request_id:reqId,technician_id:r.technician_id,
+          started_at:new Date().toISOString()}).select().single();
+        if(ins.error)throw ins.error; d=ins.data;}
+      const ph=await db.from('delivery_photos').insert({delivery_id:d.id,storage_path:path,
+        uploaded_at:new Date().toISOString()});
+      if(ph.error)throw ph.error;}
+
+    m.textContent='Uploaded ✓';toast('File attached');
+    await loadAll();openReq(reqId);
+  }catch(e){m.textContent='Error: '+(e.message||e);}}
 
 async function openReq(id){
   const r=C.requests.find(x=>x.id===id);if(!r)return;
@@ -740,11 +825,15 @@ async function openReq(id){
     '<div id="ovFiles" style="font-size:12px;line-height:2;">loading…</div>'+
     (r.note?'<div class="note"><b>Note.</b> '+esc(r.note)+'</div>':''));
   const parts=[];
-  parts.push(await fileLink('requests',r.raw_file_path,'Original request form (PDF)'));
-  for(const p of photos)parts.push(await fileLink('requests',p.storage_path,'Delivery photo · '+fmt(p.uploaded_at)));
-  for(const v2 of invs)parts.push(await fileLink('requests',v2.receipt_file_path,'Merchant invoice · '+aed(v2.total_amount_aed)+' AED'));
+  parts.push(await fileCard('requests',r.raw_file_path,'Request form',
+    'sent by '+uName(r.technician_id)+' · '+fmt(r.created_at)));
+  for(const p of photos)parts.push(await fileCard('delivery-photos',p.storage_path,'Delivery photo',
+    'uploaded '+fmt(p.uploaded_at)));
+  for(const v2 of invs)parts.push(await fileCard('receipts',v2.receipt_file_path,'Merchant invoice',
+    aed(v2.total_amount_aed)+' AED · '+day(v2.submitted_at)));
   const el=document.getElementById('ovFiles');
-  if(el)el.innerHTML=parts.filter(Boolean).join('<br>')||'<span style="color:var(--faint)">No files attached yet.</span>';}
+  if(el)el.innerHTML=(parts.filter(Boolean).join('')||
+    '<div class="fs" style="color:var(--faint);padding:6px 0;">Nothing attached yet.</div>')+uploadBox(r.id);}
 
 /* ---------- quick log ---------- */
 function openQuickLog(){
