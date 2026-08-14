@@ -311,7 +311,7 @@ const TABS=[
   {k:'spend',t:'Spend'},
   {k:'materials',t:'Materials'},
   {k:'invoices',t:'Invoices',ops:true},
-  {k:'checks',t:'Checks',count:()=>dupRequests().length+invoiceProblems().length+dupPhotos().length},
+  {k:'checks',t:'Checks',count:()=>dupRequests().length+invoiceProblems().length+dupPhotos().length+(C.alerts||[]).length},
   {k:'merchants',t:'Merchants'},
   {k:'admin',t:'Manual overrides',mdOnly:true}];
 function renderNav(){
@@ -631,9 +631,40 @@ async function saveInvoice(){
   }catch(e){msg.textContent='Error: '+(e.message||e);}}
 
 /* ---------- CHECKS ---------- */
+/* The database raises these itself from triggers — short deliveries, prices well
+   above what the same material normally costs, a manager who has been locked out.
+   They were being written and never shown, which made them worthless. */
+const ALERT_LABEL={quantity_discrepancy:'Short or over delivery',high_price:'Price looks high',
+  suspicious_supplier:'Merchant worth a second look',audit_pending:'Waiting on an audit',
+  manager_locked:'Manager was locked out'};
+const SEV=n=>Number(n)>=3?['High','b-red']:Number(n)===2?['Medium','b-amber']:['Low','b-grey'];
+function alertDetail(a){
+  const p=a.payload&&typeof a.payload==='object'?a.payload:{};
+  const bits=Object.entries(p).filter(([k,v])=>v!==null&&v!==''&&typeof v!=='object')
+    .slice(0,4).map(([k,v])=>k.replace(/_/g,' ')+': '+v);
+  return bits.join(' · ');}
+function alertsCard(){
+  const rows=(C.alerts||[]).filter(a=>!isMD()?a.visible_to_role!=='master_admin':true)
+    .sort((a,b)=>(b.severity-a.severity)||(new Date(b.created_at)-new Date(a.created_at)));
+  return card('Flagged by the system','Raised automatically when a delivery is short, a price is out of line, or a manager is locked out.',
+    rows.length?'<table><thead><tr><th>What</th><th>Severity</th><th>Detail</th><th>Raised</th>'+
+      (isMD()?'<th></th>':'')+'</tr></thead><tbody>'+
+      rows.map(a=>{const [sl,sc]=SEV(a.severity);
+        return '<tr><td><b>'+esc(ALERT_LABEL[a.type]||String(a.type).replace(/_/g,' '))+'</b></td>'+
+        '<td><span class="b '+sc+'">'+sl+'</span></td>'+
+        '<td style="font-size:11.5px;color:var(--muted);">'+esc(alertDetail(a))+'</td>'+
+        '<td>'+fmt(a.created_at)+'</td>'+
+        (isMD()?'<td class="n"><button class="g sm" onclick="resolveAlert(\''+a.id+'\')">Dismiss</button></td>':'')+
+        '</tr>';}).join('')+'</tbody></table>'
+      :'<div class="empty">Nothing flagged.</div>');}
+async function resolveAlert(id){
+  if(!isMD())return;
+  const ok=await saveRow(db.from('alerts').update({resolved:true,resolved_by:ME.id}).eq('id',id),'this alert');
+  if(ok){toast('Dismissed');loadAll();}}
+
 function pgChecks(){
   const d=dupRequests(),ip=invoiceProblems(),dp=dupPhotos();
-  P(card('Possible duplicate requests','Same material, same site, within 14 days. The MD decides whether it is genuine.',
+  P(alertsCard()+card('Possible duplicate requests','Same material, same site, within 14 days. The MD decides whether it is genuine.',
       d.length?'<table><thead><tr><th>Site</th><th>Material</th><th>Technician</th><th class="n">Days apart</th><th>First</th><th>Second</th><th class="n">AED</th></tr></thead><tbody>'+
         d.map(x=>'<tr class="cr" onclick="openReq(\''+x.id+'\')"><td>'+esc(x.site)+'</td><td><b>'+esc(x.material)+'</b></td>'+
           '<td>'+esc(x.tech)+'</td><td class="n"><span class="b b-amber">'+x.days+'</span></td>'+
