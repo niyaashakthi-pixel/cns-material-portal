@@ -2,300 +2,169 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Champs &amp; Stars — Material Control</title>
+<title>CNS · Material Control</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root{
-    --bg:#F8FAFC; --surface:#FFFFFF; --surface2:#F8FAFC;
-    --line:#E2E8F0; --line2:#EEF2F6;
-    --ink:#0F172A; --ink2:#334155; --muted:#64748B; --faint:#94A3B8;
-    --teal:#02505C; --teal-600:#046373; --teal-50:#ECF4F6; --teal-100:#D6E8EB;
-    --amber:#B45309; --amber-50:#FEF6E7;
-    --red:#B42318; --red-50:#FEF0EE;
-    --green:#15803D; --green-50:#EDF7F0;
-    --shadow-sm:0 1px 2px rgba(15,23,42,.04);
-    --shadow:0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
-    --shadow-lg:0 10px 30px rgba(15,23,42,.10);
-    --r:12px;
+    --bg:#FAFAF9; --surface:#FFFFFF; --surface2:#F5F5F4;
+    --line:#E7E5E4; --line2:#F0EFEE;
+    --ink:#1C1917; --ink2:#44403C; --muted:#78716C; --faint:#A8A29E;
+    --teal:#02505C; --teal2:#0A6B78; --teal-bg:#EBF2F3;
+    --amber:#B45309; --amber-bg:#FDF4E7;
+    --red:#B42318; --red-bg:#FDF0EE;
+    --green:#15803D; --green-bg:#EFF6F1;
+    --nav:#0F1B1E; --navtx:#93A7AB;
+    --sh:0 1px 2px rgba(28,25,23,.05);
   }
   *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--ink);
+  body{margin:0;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.45;
     font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5;}
+    -webkit-font-smoothing:antialiased;display:flex;min-height:100vh;}
 
-  header{background:var(--teal);color:#fff;padding:0 32px;height:60px;display:flex;
-    align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
-  .brand{display:flex;align-items:center;gap:14px;}
-  .brand .logo{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.15);
-    display:grid;place-items:center;font-weight:700;font-size:11px;letter-spacing:.02em;}
-  .brand h1{font-size:15px;margin:0;font-weight:600;letter-spacing:-.01em;}
-  .brand .sub{color:rgba(255,255,255,.7);font-size:12px;}
-  .chip{display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;font-size:10.5px;
-    font-weight:700;background:rgba(255,255,255,.16);text-transform:uppercase;letter-spacing:.06em;}
-  .hbtns{display:flex;gap:8px;}
-  header button{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2);}
-  header button:hover{background:rgba(255,255,255,.2);}
+  /* ---- left nav ---- */
+  nav{width:186px;background:var(--nav);color:var(--navtx);flex:none;display:flex;flex-direction:column;
+    position:fixed;top:0;bottom:0;left:0;padding:16px 10px;}
+  .logo{display:flex;align-items:center;gap:9px;padding:0 8px 16px;}
+  .logo .m{width:26px;height:26px;border-radius:6px;background:rgba(255,255,255,.13);color:#fff;
+    display:grid;place-items:center;font-size:10px;font-weight:700;}
+  .logo .t{color:#fff;font-size:13px;font-weight:600;letter-spacing:-.01em;}
+  .navi{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;border-radius:6px;
+    cursor:pointer;font-size:12.5px;font-weight:500;transition:background .12s,color .12s;margin-bottom:1px;}
+  .navi:hover{background:rgba(255,255,255,.06);color:#fff;}
+  .navi.on{background:rgba(255,255,255,.11);color:#fff;font-weight:600;}
+  .navi .c{background:var(--amber);color:#fff;border-radius:9px;padding:0 6px;font-size:10px;font-weight:700;}
+  .navsec{font-size:9.5px;text-transform:uppercase;letter-spacing:.11em;color:#5F7378;padding:14px 9px 6px;font-weight:700;}
+  .who{margin-top:auto;padding:10px 9px;border-top:1px solid rgba(255,255,255,.08);font-size:11.5px;}
+  .who b{color:#fff;display:block;font-size:12px;}
+  .who .r{color:#5F7378;text-transform:uppercase;letter-spacing:.08em;font-size:9.5px;font-weight:700;margin-top:2px;}
 
-  button{font:inherit;font-size:13px;font-weight:550;border:none;border-radius:8px;padding:8px 14px;
-    background:var(--teal);color:#fff;cursor:pointer;transition:background .15s,box-shadow .15s,transform .06s;}
-  button:hover{background:var(--teal-600);}
-  button:active{transform:translateY(.5px);}
-  button.ghost{background:var(--surface);color:var(--ink2);border:1px solid var(--line);}
-  button.ghost:hover{background:var(--surface2);border-color:#CBD5E1;}
-  button.sm{padding:5px 10px;font-size:12px;border-radius:7px;}
-  button.approve{background:var(--green);}
-  button.approve:hover{background:#166534;}
+  /* ---- main ---- */
+  main{margin-left:186px;flex:1;min-width:0;}
+  .top{background:var(--surface);border-bottom:1px solid var(--line);padding:0 24px;height:52px;
+    display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;}
+  .top h1{font-size:15px;margin:0;font-weight:650;letter-spacing:-.01em;}
+  .top .sub{font-size:11.5px;color:var(--muted);margin-left:10px;}
+  .wrap{padding:20px 24px 70px;max-width:1320px;}
 
-  main{max-width:1400px;margin:0 auto;padding:24px 32px 96px;}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
-    box-shadow:var(--shadow-sm);margin-bottom:20px;}
-  .card-h{padding:18px 22px 0;}
-  .card-h h3{margin:0 0 4px;font-size:15px;font-weight:600;letter-spacing:-.01em;}
-  .card-h p{margin:0 0 16px;font-size:12.5px;color:var(--muted);max-width:74ch;}
-  .card-b{padding:0 22px 20px;}
-  .card-b.tight{padding-bottom:8px;}
+  .sitefilter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;}
+  .sf{padding:5px 11px;border-radius:6px;border:1px solid var(--line);background:var(--surface);
+    font-size:12px;color:var(--ink2);cursor:pointer;transition:.12s;font-weight:500;}
+  .sf:hover{border-color:var(--faint);}
+  .sf.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;}
+  .sf .b{font-size:10px;margin-left:5px;opacity:.8;}
 
-  .pills{display:flex;gap:7px;flex-wrap:wrap;}
-  .pill{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);
-    color:var(--ink2);font-size:12.5px;font-weight:550;cursor:pointer;transition:all .15s;user-select:none;}
-  .pill:hover{border-color:var(--teal-100);background:var(--teal-50);color:var(--teal);}
-  .pill.on{background:var(--teal);border-color:var(--teal);color:#fff;}
-  .pill .n{opacity:.65;margin-left:6px;font-weight:500;}
+  .grid{display:grid;gap:14px;margin-bottom:18px;}
+  .g5{grid-template-columns:repeat(auto-fit,minmax(178px,1fr));}
+  .g2{grid-template-columns:1fr 1fr;}
+  .g21{grid-template-columns:1.6fr 1fr;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--sh);}
+  .card>h3{margin:0;padding:12px 15px 0;font-size:13px;font-weight:650;}
+  .card>p.s{margin:2px 0 0;padding:0 15px;font-size:11.5px;color:var(--muted);}
+  .card>.body{padding:12px 15px 14px;}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;box-shadow:var(--sh);}
+  .stat .l{font-size:10.5px;color:var(--muted);font-weight:600;display:flex;justify-content:space-between;gap:6px;}
+  .stat .v{font-size:20px;font-weight:680;letter-spacing:-.02em;margin-top:5px;font-variant-numeric:tabular-nums;}
+  .stat .f{font-size:10.5px;color:var(--faint);margin-top:3px;}
 
-  .sitebar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;}
-  .site{padding:12px 16px;border-radius:10px;border:1px solid var(--line);background:var(--surface);
-    cursor:pointer;transition:all .15s;min-width:152px;box-shadow:var(--shadow-sm);}
-  .site:hover{border-color:#CBD5E1;transform:translateY(-1px);box-shadow:var(--shadow);}
-  .site.on{border-color:var(--teal);background:var(--teal-50);}
-  .site .nm{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;}
-  .site .mt{font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums;}
-  .site.on .mt{color:var(--teal-600);}
-
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:16px;margin-bottom:20px;}
-  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;
-    box-shadow:var(--shadow-sm);transition:box-shadow .15s,border-color .15s;}
-  .kpi:hover{box-shadow:var(--shadow);}
-  .kpi .lb{font-size:11.5px;color:var(--muted);font-weight:550;display:flex;justify-content:space-between;
-    align-items:center;gap:8px;}
-  .kpi .vl{font-size:27px;font-weight:650;letter-spacing:-.025em;margin-top:8px;font-variant-numeric:tabular-nums;}
-  .kpi .ft{font-size:11.5px;color:var(--faint);margin-top:5px;}
-
-  .b{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;
-    font-size:11px;font-weight:650;white-space:nowrap;}
-  .b-teal{background:var(--teal-50);color:var(--teal);}
-  .b-amber{background:var(--amber-50);color:var(--amber);}
-  .b-red{background:var(--red-50);color:var(--red);}
-  .b-green{background:var(--green-50);color:var(--green);}
-  .b-grey{background:#F1F5F9;color:var(--ink2);}
-  .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
-
-  table{width:100%;border-collapse:collapse;font-size:13px;}
-  th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line2);}
-  th{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);
-    font-weight:650;white-space:nowrap;background:var(--surface2);}
-  tbody tr{transition:background .12s;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line2);}
+  th{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:700;
+    background:var(--surface2);white-space:nowrap;}
   tbody tr:hover{background:var(--surface2);}
   tbody tr:last-child td{border-bottom:none;}
   td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;}
-  .clickrow{cursor:pointer;}
-  .empty{color:var(--muted);font-size:13px;padding:24px 0;text-align:center;}
+  .cr{cursor:pointer;}
+  .empty{color:var(--muted);padding:20px 0;text-align:center;font-size:12.5px;}
 
-  .bar{height:7px;border-radius:999px;background:var(--line2);overflow:hidden;}
-  .bar span{display:block;height:100%;border-radius:999px;transition:width .5s cubic-bezier(.4,0,.2,1);}
+  .b{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:4px;font-size:10.5px;font-weight:650;white-space:nowrap;}
+  .b-teal{background:var(--teal-bg);color:var(--teal);} .b-amber{background:var(--amber-bg);color:var(--amber);}
+  .b-red{background:var(--red-bg);color:var(--red);} .b-green{background:var(--green-bg);color:var(--green);}
+  .b-grey{background:var(--surface2);color:var(--ink2);}
 
-  input,select,textarea{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--line);
-    background:var(--surface);color:var(--ink);font:inherit;font-size:13px;transition:border .15s,box-shadow .15s;}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-50);}
-  label{display:block;font-size:11.5px;color:var(--muted);margin:0 0 5px;font-weight:550;}
-  .fld{margin-bottom:14px;}
-  .g2{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
-  .g3{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-bottom:8px;}
+  button{font:inherit;font-size:12px;font-weight:550;border:none;border-radius:6px;padding:6px 11px;
+    background:var(--teal);color:#fff;cursor:pointer;transition:background .12s;}
+  button:hover{background:var(--teal2);}
+  button.g{background:var(--surface);color:var(--ink2);border:1px solid var(--line);}
+  button.g:hover{background:var(--surface2);}
+  button.ok{background:var(--green);} button.ok:hover{background:#166534;}
+  button.sm{padding:3px 8px;font-size:11px;}
+  a.lnk{color:var(--teal);text-decoration:none;border-bottom:1px solid var(--teal-bg);cursor:pointer;}
+  a.lnk:hover{border-color:var(--teal);}
 
-  .scrim{position:fixed;inset:0;background:rgba(15,23,42,.32);opacity:0;pointer-events:none;
-    transition:opacity .25s;z-index:80;}
+  input,select,textarea{width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--line);
+    background:var(--surface);font:inherit;font-size:12.5px;color:var(--ink);}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-bg);}
+  label{display:block;font-size:10.5px;color:var(--muted);margin:0 0 4px;font-weight:600;}
+  .fld{margin-bottom:11px;}
+  .row3{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:6px;margin-bottom:6px;}
+  .bar{height:5px;border-radius:3px;background:var(--line2);overflow:hidden;}
+  .bar span{display:block;height:100%;border-radius:3px;}
+  .pie{position:relative;height:190px;}
+  .note{font-size:11px;color:var(--muted);line-height:1.7;margin-top:10px;}
+  .note b{color:var(--ink2);}
+
+  .scrim{position:fixed;inset:0;background:rgba(28,25,23,.3);opacity:0;pointer-events:none;transition:.22s;z-index:80;}
   .scrim.on{opacity:1;pointer-events:auto;}
-  .over{position:fixed;top:0;right:0;height:100%;width:min(560px,100%);background:var(--surface);
-    box-shadow:var(--shadow-lg);transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+  .over{position:fixed;top:0;right:0;height:100%;width:min(600px,100%);background:var(--surface);
+    box-shadow:-8px 0 28px rgba(28,25,23,.1);transform:translateX(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);
     z-index:90;display:flex;flex-direction:column;}
   .over.on{transform:translateX(0);}
-  .over-h{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;
-    align-items:flex-start;gap:16px;}
-  .over-h h4{margin:0 0 3px;font-size:16px;font-weight:600;}
-  .over-h .s{font-size:12.5px;color:var(--muted);}
-  .over-b{padding:22px 24px;overflow:auto;flex:1;}
-  .x{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;cursor:pointer;}
+  .oh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .oh h4{margin:0 0 2px;font-size:15px;font-weight:650;}
+  .oh .s{font-size:11.5px;color:var(--muted);}
+  .ob{padding:18px 20px;overflow:auto;flex:1;}
+  .x{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;}
   .x:hover{color:var(--ink);background:none;}
-
-  .feed{display:flex;flex-direction:column;}
-  .fitem{display:flex;gap:14px;padding:14px 12px;border-bottom:1px solid var(--line2);
-    align-items:center;transition:background .12s;}
-  .fitem:hover{background:var(--surface2);}
-  .fitem:last-child{border-bottom:none;}
-  .av{width:34px;height:34px;border-radius:50%;background:var(--teal-50);color:var(--teal);
-    display:grid;place-items:center;font-size:12px;font-weight:700;flex:none;}
-  .fmain{flex:1;min-width:0;}
-  .fmain .t{font-size:13px;font-weight:550;}
-  .fmain .m{font-size:11.5px;color:var(--muted);margin-top:2px;}
-
-  .chartwrap{position:relative;height:280px;}
-  .toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:12px 18px;
-    border-radius:9px;font-size:13px;display:none;z-index:120;box-shadow:var(--shadow-lg);}
-  .note{font-size:11.5px;color:var(--muted);line-height:1.8;margin-top:12px;}
-  .note b{color:var(--ink2);font-weight:600;}
-  .login{max-width:400px;margin:100px auto;background:var(--surface);border:1px solid var(--line);
-    border-radius:14px;padding:34px;box-shadow:var(--shadow);}
-  .login h2{margin:0 0 6px;font-size:19px;color:var(--teal);font-weight:650;}
-  .split{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;}
-  @media(max-width:1000px){.g2,.split{grid-template-columns:1fr;}}
+  .toast{position:fixed;bottom:20px;right:20px;background:var(--ink);color:#fff;padding:10px 16px;
+    border-radius:7px;font-size:12.5px;display:none;z-index:120;}
+  .login{max-width:380px;margin:90px auto;background:var(--surface);border:1px solid var(--line);
+    border-radius:10px;padding:30px;box-shadow:var(--sh);}
+  .login h2{margin:0 0 4px;font-size:18px;color:var(--teal);}
+  .ro{background:var(--surface2);border:1px dashed var(--line);border-radius:6px;padding:9px 12px;
+    font-size:11.5px;color:var(--muted);}
+  @media(max-width:900px){nav{display:none;}main{margin-left:0;}.g2,.g21{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
 
 <div id="loginScreen" class="login" style="display:none;">
   <h2>Champs &amp; Stars</h2>
-  <p style="color:var(--muted);font-size:13px;margin:0 0 20px;">Material control. Enter your work email and we'll send a one-time sign-in link.</p>
+  <p style="color:var(--muted);margin:0 0 18px;">Material control. Enter your work email for a one-time sign-in link.</p>
   <div class="fld"><label>Email</label><input id="loginEmail" type="email" placeholder="you@cnsmea.com" /></div>
   <button onclick="sendLink()" style="width:100%;">Send sign-in link</button>
-  <div id="otpBlock" style="display:none;margin-top:14px;">
-    <div class="fld"><label>6-digit code from the email</label><input id="otpCode" inputmode="numeric" placeholder="123456" /></div>
-    <button onclick="verifyCode()" style="width:100%;">Verify &amp; sign in</button>
-  </div>
-  <p id="loginMsg" style="color:var(--teal);font-size:12.5px;"></p>
-  <p style="color:var(--faint);font-size:11.5px;">Your email must be registered by the Managing Director.</p>
+  <div id="otpBlock" style="display:none;margin-top:12px;">
+    <div class="fld"><label>6-digit code</label><input id="otpCode" inputmode="numeric" placeholder="123456" /></div>
+    <button onclick="verifyCode()" style="width:100%;">Verify &amp; sign in</button></div>
+  <p id="loginMsg" style="color:var(--teal);font-size:12px;"></p>
 </div>
 
-<div id="app" style="display:none;">
-<header>
-  <div class="brand">
-    <div class="logo">CNS</div>
-    <div><h1>Material Control</h1><div class="sub" id="whoami"></div></div>
-    <span class="chip" id="roleChip"></span>
-  </div>
-  <div class="hbtns">
-    <button id="btnQuickLog" onclick="openQuickLog()" style="display:none;">+ Quick log</button>
-    <button class="ghost" onclick="loadAll()">Refresh</button>
-    <button class="ghost" onclick="signOut()">Sign out</button>
-  </div>
-</header>
+<nav id="nav" style="display:none;">
+  <div class="logo"><div class="m">CNS</div><div class="t">Material Control</div></div>
+  <div id="navItems"></div>
+  <div class="who"><b id="whoName"></b><div class="r" id="whoRole"></div></div>
+</nav>
 
-<main>
-  <div class="sitebar" id="siteBar"></div>
-
-  <div class="card" style="border-left:3px solid var(--teal);">
-    <div class="card-h"><h3>What needs doing</h3>
-      <p>Everything here is costing money or about to. Most urgent first.</p></div>
-    <div class="card-b tight"><div id="actionsBox"></div></div>
-  </div>
-
-  <div class="kpis" id="kpis"></div>
-
-  <div class="card">
-    <div class="card-h">
-      <h3>Spend explorer</h3>
-      <p>Pick a period, then choose how to slice it. Search a material to see what it has cost across every site.</p>
-      <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px;">
-        <div><div style="font-size:10.5px;color:var(--faint);font-weight:650;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;">Period</div>
-          <div class="pills" id="periodPills"></div></div>
-        <div><div style="font-size:10.5px;color:var(--faint);font-weight:650;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;">Break down</div>
-          <div class="pills" id="groupPills"></div></div>
-        <div style="flex:1;min-width:220px;"><div style="font-size:10.5px;color:var(--faint);font-weight:650;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;">Find a material</div>
-          <input type="search" id="spendSearch" placeholder="e.g. XLPE cable" oninput="renderSpend()" /></div>
-      </div>
+<main id="app" style="display:none;">
+  <div class="top">
+    <div style="display:flex;align-items:baseline;"><h1 id="pageTitle">Overview</h1><span class="sub" id="pageSub"></span></div>
+    <div style="display:flex;gap:7px;">
+      <button class="g" id="btnQuick" onclick="openQuickLog()" style="display:none;">+ Quick log</button>
+      <button class="g" onclick="loadAll()">Refresh</button>
+      <button class="g" onclick="signOut()">Sign out</button>
     </div>
-    <div class="card-b"><div class="split">
-      <div id="spendTable"></div>
-      <div class="chartwrap"><canvas id="chSpend"></canvas></div>
-    </div></div>
   </div>
-
-  <div class="card">
-    <div class="card-h"><h3>Budgets</h3><p id="budgetSub"></p></div>
-    <div class="card-b"><div id="budgetBox"></div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-h"><h3>Technician activity</h3>
-      <p>Newest requests first. Approve here and the 3-day invoice clock starts.</p></div>
-    <div class="card-b"><div class="split"><div id="feedBox"></div><div id="techBoard"></div></div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-h"><h3>Requests</h3><p id="reqSub"></p>
-      <div class="pills" id="stagePills" style="margin-bottom:6px;"></div></div>
-    <div class="card-b"><div id="requestsBox"></div>
-      <div class="note"><b>Stages.</b> Awaiting approval — a manager has not signed it off yet. ·
-        Approved — cleared to buy, 3-day invoice clock running. · Delivery in progress — technician confirming on site. ·
-        Delivered — arrived, invoice still needed. · Invoiced — supplier has billed us. · Closed — done.</div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-h"><h3>Materials across every site</h3>
-      <p>Before buying again, check here. Ordered, what arrived, what the supplier still owes, and where you have spare.</p>
-      <div class="pills" id="stockPills" style="margin-bottom:6px;"></div></div>
-    <div class="card-b"><div id="stockBox"></div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-h"><h3>Where money is leaking</h3><p>Click a card to see the detail.</p></div>
-    <div class="card-b"><div class="kpis" id="leakCards" style="margin-bottom:16px;"></div><div id="leakDetail"></div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-h"><h3>Suppliers</h3><p>Who you buy from and what share of your spend they hold.</p></div>
-    <div class="card-b"><div id="suppliersBox"></div></div>
-  </div>
-
-  <div class="card" id="secTech" style="display:none;">
-    <div class="card-h"><h3>Site technicians</h3><p>Only these numbers can send request forms over WhatsApp.</p></div>
-    <div class="card-b"><div class="g2">
-      <div id="techForm">
-        <div class="fld"><label>Full name</label><input id="techName" placeholder="e.g. Rajesh Kumar" /></div>
-        <div class="fld"><label>Phone number (country code, no +)</label><input id="techPhone" placeholder="9715XXXXXXXX" /></div>
-        <button onclick="addTechnician()">Add technician</button>
-        <p id="techMsg" style="font-size:12.5px;color:var(--teal);"></p>
-      </div>
-      <div id="techBox"></div>
-    </div></div>
-  </div>
-
-  <div class="card" id="secInvoice" style="display:none;">
-    <div class="card-h"><h3>Enter a supplier invoice</h3><p>Records what the supplier actually charged and updates petty cash.</p></div>
-    <div class="card-b"><div class="g2">
-      <div>
-        <div class="fld"><label>Which request</label><select id="invRequest"></select></div>
-        <div class="fld"><label>Supplier (type a new name to create it)</label>
-          <input id="invSupplier" list="supplierList" placeholder="Supplier name" /><datalist id="supplierList"></datalist></div>
-        <div class="fld"><label>Receipt reference</label><input id="invReceipt" placeholder="receipts/xxx.pdf" /></div>
-      </div>
-      <div>
-        <label>What was billed</label><div id="invItems"></div>
-        <button class="ghost sm" onclick="addInvItem()">+ Add line</button>
-        <div style="margin:12px 0;font-size:13px;">Total: <b id="invTotal">0.00</b> AED</div>
-        <button onclick="submitInvoice()">Save invoice</button>
-        <p id="invMsg" style="font-size:12.5px;color:var(--teal);"></p>
-      </div>
-    </div></div>
-  </div>
-
-  <div class="card" id="secAlaan" style="display:none;">
-    <div class="card-h"><h3>Record ALAAN card spend</h3><p>Money drawn on the company card against a request.</p></div>
-    <div class="card-b"><div class="g2">
-      <div class="fld"><label>Which request</label><select id="alaanRequest"></select></div>
-      <div><div class="fld"><label>Amount disbursed (AED)</label><input id="alaanAmount" type="number" step="0.01" placeholder="0.00" /></div>
-        <button onclick="submitAlaan()">Record spend</button>
-        <p id="alaanMsg" style="font-size:12.5px;color:var(--teal);"></p></div>
-    </div></div>
+  <div class="wrap">
+    <div class="sitefilter" id="siteFilter"></div>
+    <div id="page"></div>
   </div>
 </main>
-</div>
 
 <div class="scrim" id="scrim" onclick="closeOver()"></div>
 <div class="over" id="over">
-  <div class="over-h"><div><h4 id="overTitle">Detail</h4><div class="s" id="overSub"></div></div>
-    <button class="x" onclick="closeOver()">&times;</button></div>
-  <div class="over-b" id="overBody"></div>
+  <div class="oh"><div><h4 id="ovT">Detail</h4><div class="s" id="ovS"></div></div><button class="x" onclick="closeOver()">&times;</button></div>
+  <div class="ob" id="ovB"></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -303,597 +172,594 @@
 const SUPA_URL='https://scjtiuztvohagvmwgntn.supabase.co';
 const SUPA_KEY='sb_publishable_HQ_cM4QKr4D7MNZTseNwbg_j9MmNK8L';
 const db=window.supabase.createClient(SUPA_URL,SUPA_KEY);
-let ME=null,C={},CH={},SITE='all',PERIOD='month',GROUP='site',STAGE='',STOCKF='',LEAK='ghost';
+let ME=null,C={},CH={},SITE='all',TAB='overview',PERIOD='month',GROUP='site';
+const CL={teal:'#02505C',t2:'#4E8D98',t3:'#9CC0C6',sand:'#B08442',s2:'#D8BD91',red:'#B42318',amber:'#B45309',grey:'#D6D3D1',ink:'#1C1917',line:'#E7E5E4',muted:'#78716C'};
 
-const CL={teal:'#02505C',teal2:'#4E8D98',sand:'#B08442',red:'#B42318',ink:'#0F172A',line:'#E2E8F0',muted:'#64748B'};
-
-const STAGES={awaiting_file:['Waiting for form','b-amber'],parsing:['Reading form','b-amber'],
+const STG={awaiting_file:['Waiting for form','b-amber'],parsing:['Reading form','b-amber'],
   parsed:['Awaiting approval','b-amber'],parse_failed:["Couldn't read form",'b-red'],
   delivery_started:['Delivery in progress','b-teal'],delivered:['Delivered — needs invoice','b-green'],
   invoiced:['Invoiced','b-grey'],closed:['Closed','b-grey'],on_hold:['On hold','b-red']};
-function stageOf(r){
-  if(r.status==='parsed'&&r.approved_at)return['Approved — buy now','b-teal'];
-  return STAGES[r.status]||[String(r.status||'').replace(/_/g,' '),'b-grey'];}
+const stage=r=>(r.status==='parsed'&&r.approved_at)?['Approved — buy now','b-teal']:(STG[r.status]||[String(r.status||''),'b-grey']);
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const aed=v=>(v===null||v===undefined||v==='')?'—':Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const aed0=v=>Number(v||0).toLocaleString(undefined,{maximumFractionDigits:0});
 const num=v=>(v===null||v===undefined||v==='')?'—':Number(v).toLocaleString();
-const initials=n=>String(n||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-function fmtDate(d){if(!d)return '—';const x=new Date(d);
-  return x.toLocaleDateString(undefined,{day:'numeric',month:'short'})+' '+x.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});}
+const ini=n=>String(n||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const fmt=d=>{if(!d)return '—';const x=new Date(d);return x.toLocaleDateString(undefined,{day:'numeric',month:'short'})+' '+x.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});};
+const day=d=>d?new Date(d).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'—';
 function ago(d){if(!d)return '';const s=(Date.now()-new Date(d))/1000;
-  if(s<3600)return Math.max(1,Math.round(s/60))+'m ago';
-  if(s<86400)return Math.round(s/3600)+'h ago';
-  return Math.round(s/86400)+'d ago';}
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';
-  setTimeout(()=>t.style.display='none',3000);}
+  if(s<3600)return Math.max(1,Math.round(s/60))+'m ago';if(s<86400)return Math.round(s/3600)+'h ago';return Math.round(s/86400)+'d ago';}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2800);}
+
+/* ---------- roles ----------
+   Ambika  master_admin : read + write everything, approvals, overrides
+   Sadique ops_manager  : raises invoices, matches them to requests
+   Ashik   viewer       : sees every chart and figure, changes nothing        */
+const isMD=()=>ME&&ME.role==='master_admin';
+const isOps=()=>ME&&ME.role==='ops_manager';
+const readOnly=()=>ME&&ME.role==='viewer';
 
 const REDIRECT_TO=location.origin+location.pathname;
-async function sendLink(){
-  const email=document.getElementById('loginEmail').value.trim(); if(!email)return;
-  const {error}=await db.auth.signInWithOtp({email,options:{emailRedirectTo:REDIRECT_TO}});
-  if(error){document.getElementById('loginMsg').textContent='Error: '+(error.message||'');return;}
+async function sendLink(){const e=document.getElementById('loginEmail').value.trim();if(!e)return;
+  const {error}=await db.auth.signInWithOtp({email:e,options:{emailRedirectTo:REDIRECT_TO}});
+  if(error){document.getElementById('loginMsg').textContent='Error: '+error.message;return;}
   document.getElementById('otpBlock').style.display='block';
-  document.getElementById('loginMsg').textContent='Email sent — click the link in it, or paste the code below.';}
-async function verifyCode(){
-  const email=document.getElementById('loginEmail').value.trim();
-  const token=document.getElementById('otpCode').value.trim(); if(!email||!token)return;
-  let {error}=await db.auth.verifyOtp({email,token,type:'email'});
-  if(error)({error}=await db.auth.verifyOtp({email,token,type:'magiclink'}));
-  if(error){document.getElementById('loginMsg').textContent='Error: '+(error.message||'');return;}
-  location.reload();}
+  document.getElementById('loginMsg').textContent='Email sent — click the link, or paste the code below.';}
+async function verifyCode(){const e=document.getElementById('loginEmail').value.trim(),t=document.getElementById('otpCode').value.trim();
+  if(!e||!t)return;let {error}=await db.auth.verifyOtp({email:e,token:t,type:'email'});
+  if(error)({error}=await db.auth.verifyOtp({email:e,token:t,type:'magiclink'}));
+  if(error){document.getElementById('loginMsg').textContent='Error: '+error.message;return;}location.reload();}
 async function signOut(){await db.auth.signOut();location.reload();}
+
 async function boot(){
   const {data:{session}}=await db.auth.getSession();
   if(!session){document.getElementById('loginScreen').style.display='block';
     const h=new URLSearchParams(location.hash.replace(/^#/,''));const d=h.get('error_description');
-    if(d)document.getElementById('loginMsg').textContent='Sign-in link problem: '+decodeURIComponent(d.replace(/\+/g,' '));
+    if(d)document.getElementById('loginMsg').textContent=decodeURIComponent(d.replace(/\+/g,' '));
     db.auth.onAuthStateChange((_e,s)=>{if(s)location.reload();});return;}
   const {data:me}=await db.from('users').select('*').eq('email',session.user.email).maybeSingle();
   if(!me){document.getElementById('loginScreen').style.display='block';
     document.getElementById('loginMsg').textContent='Signed in as '+session.user.email+' but not on the staff list.';return;}
   ME=me;
+  document.getElementById('nav').style.display='flex';
   document.getElementById('app').style.display='block';
-  document.getElementById('roleChip').textContent=me.role.replace('_',' ');
-  document.getElementById('whoami').textContent=me.full_name;
-  const admin=me.role==='master_admin', ops=me.role==='ops_manager';
-  document.getElementById('secTech').style.display='block';
-  if(!admin)document.getElementById('techForm').style.display='none';
-  document.getElementById('secInvoice').style.display=(admin||ops)?'block':'none';
-  document.getElementById('secAlaan').style.display=(admin||ops)?'block':'none';
-  document.getElementById('btnQuickLog').style.display=(admin||ops)?'inline-flex':'none';
+  document.getElementById('whoName').textContent=me.full_name;
+  document.getElementById('whoRole').textContent=({master_admin:'Managing Director',ops_manager:'Manager',viewer:'Read only'})[me.role]||me.role;
+  if(isMD()||isOps())document.getElementById('btnQuick').style.display='inline-block';
   loadAll();}
-const canWrite=()=>ME&&(ME.role==='master_admin'||ME.role==='ops_manager');
-const isAdmin=()=>ME&&ME.role==='master_admin';
 
 async function loadAll(){
-  const [projects,requests,alerts,lockouts,suppliers,materials,petty,items,invoices,deliveries,ditems,iitems,techs]=
-  await Promise.all([
+  const q=await Promise.all([
     db.from('projects').select('*'),
     db.from('material_requests').select('*').order('created_at',{ascending:false}).limit(400),
-    db.from('alerts').select('*').eq('resolved',false).order('created_at',{ascending:false}),
-    db.from('lockout_timers').select('*').order('deadline_at',{ascending:true}).limit(40),
-    db.from('suppliers').select('*'), db.from('materials').select('*'),
-    db.from('petty_cash_ledger').select('*').order('created_at',{ascending:false}).limit(1),
     db.from('request_items').select('*').order('line_no',{ascending:true}),
-    db.from('invoices').select('*'), db.from('deliveries').select('*'),
-    db.from('delivery_items').select('*'), db.from('invoice_items').select('*'),
-    db.from('users').select('id, full_name, phone_e164, is_active').eq('role','technician')]);
-  C={projects:projects.data||[],requests:requests.data||[],alerts:alerts.data||[],lockouts:lockouts.data||[],
-     suppliers:suppliers.data||[],materials:materials.data||[],petty:petty.data||[],items:items.data||[],
-     invoices:invoices.data||[],deliveries:deliveries.data||[],ditems:ditems.data||[],iitems:iitems.data||[],
-     techs:techs.data||[]};
-  renderAll();}
-function renderAll(){
-  renderSites();renderActions();renderKpis();renderPeriodPills();renderGroupPills();renderSpend();
-  renderBudget();renderFeed();renderTechBoard();renderStagePills();renderRequests();
-  renderStockPills();renderStock();renderLeaks();renderSuppliers();renderTechnicians();fillForms();}
+    db.from('invoices').select('*'), db.from('invoice_items').select('*'),
+    db.from('deliveries').select('*'), db.from('delivery_items').select('*'),
+    db.from('delivery_photos').select('*'),
+    db.from('suppliers').select('*'), db.from('materials').select('*'),
+    db.from('lockout_timers').select('*').order('deadline_at',{ascending:true}),
+    db.from('alerts').select('*').eq('resolved',false),
+    db.from('users').select('id, full_name, phone_e164, is_active, role, is_locked, locked_at')]);
+  const g=i=>q[i].data||[];
+  C={projects:g(0),requests:g(1),items:g(2),invoices:g(3),iitems:g(4),deliveries:g(5),ditems:g(6),
+     photos:g(7),merchants:g(8),materials:g(9),lockouts:g(10),alerts:g(11),users:g(12)};
+  C.techs=C.users.filter(u=>u.role==='technician');
+  render();}
 
 const pName=id=>(C.projects.find(p=>p.id===id)||{}).name||'Unassigned';
-const tName=id=>(C.techs.find(t=>t.id===id)||{}).full_name||'Unknown';
+const uName=id=>(C.users.find(u=>u.id===id)||{}).full_name||'Unknown';
 const inSite=r=>SITE==='all'||r.project_id===SITE;
-function periodStart(){const d=new Date();
+function pStart(){const d=new Date();
   if(PERIOD==='month')return new Date(d.getFullYear(),d.getMonth(),1);
   if(PERIOD==='m3'){const x=new Date();x.setMonth(x.getMonth()-3);return x;}
   if(PERIOD==='m6'){const x=new Date();x.setMonth(x.getMonth()-6);return x;}
   return new Date(0);}
-const inPeriod=r=>new Date(r.created_at)>=periodStart();
+const inPeriod=r=>new Date(r.created_at)>=pStart();
 const itemsOf=r=>C.items.filter(i=>i.request_id===r.id);
-const valOf=rs=>{const ids=new Set(rs.map(r=>r.id));
-  return C.items.filter(i=>ids.has(i.request_id)).reduce((s,i)=>s+(+i.expected_amount_aed||0),0);};
-const billOf=rs=>{const ids=new Set(rs.map(r=>r.id));
-  return C.invoices.filter(v=>ids.has(v.request_id)).reduce((s,v)=>s+(+v.total_amount_aed||0),0);};
+const valOf=rs=>{const s=new Set(rs.map(r=>r.id));return C.items.filter(i=>s.has(i.request_id)).reduce((a,i)=>a+(+i.expected_amount_aed||0),0);};
+const invOf=rs=>{const s=new Set(rs.map(r=>r.id));return C.invoices.filter(v=>s.has(v.request_id)).reduce((a,v)=>a+(+v.total_amount_aed||0),0);};
+const pending=()=>C.requests.filter(r=>!r.approved_at&&['parsed','parsing'].includes(r.status));
 
-function renderSites(){
-  const el=document.getElementById('siteBar');
-  const mk=(id,name,rs)=>{
-    const v=valOf(rs), p=C.projects.find(x=>x.id===id), bud=p?+p.material_budget_aed||0:0;
-    const pct=bud?v/bud*100:0;
-    const badge=id==='all'?'':pct>=100?'<span class="b b-red"><span class="dot"></span>over</span>'
-      :pct>=80?'<span class="b b-amber"><span class="dot"></span>'+Math.round(pct)+'%</span>':'';
-    return '<div class="site '+(SITE===id?'on':'')+'" onclick="setSite(\''+id+'\')">'+
-      '<div class="nm">'+esc(name)+' '+badge+'</div>'+
-      '<div class="mt">'+aed0(v)+' AED · '+rs.length+' request'+(rs.length===1?'':'s')+'</div></div>';};
-  el.innerHTML=mk('all','All sites',C.requests)+
-    C.projects.map(p=>mk(p.id,p.name,C.requests.filter(r=>r.project_id===p.id))).join('');}
-function setSite(id){SITE=id;renderAll();}
-
-function buildActions(){
-  const a=[],now=new Date();
-  C.requests.filter(inSite).filter(r=>!r.approved_at&&['parsed','parsing'].includes(r.status)).forEach(r=>{
-    a.push({p:1,tag:'Approve',cls:'b-amber',t:esc(pName(r.project_id))+' — a request is waiting for your approval.',
-      m:valOf([r]),id:r.id,kind:'req'});});
-  (C.lockouts||[]).filter(t=>!t.satisfied_at&&!t.locked).forEach(t=>{
-    const h=Math.round((new Date(t.deadline_at)-now)/36e5);
-    if(h<0)a.push({p:1,tag:'Overdue',cls:'b-red',t:'An invoice deadline has passed — the manager is at risk of lockout.',m:null});
-    else if(h<=24)a.push({p:1,tag:h+'h left',cls:'b-red',t:'Supplier invoice due within '+h+' hours.',m:null});
-    else if(h<=48)a.push({p:3,tag:h+'h left',cls:'b-amber',t:'Supplier invoice due in '+h+' hours.',m:null});});
-  C.projects.filter(p=>SITE==='all'||p.id===SITE).forEach(p=>{
-    const bud=+p.material_budget_aed||0; if(!bud)return;
-    const sp=valOf(C.requests.filter(r=>r.project_id===p.id)), pct=sp/bud*100;
-    if(pct>=100)a.push({p:1,tag:Math.round(pct)+'% of budget',cls:'b-red',t:esc(p.name)+' is over its material budget.',m:sp-bud});
-    else if(pct>=80)a.push({p:2,tag:Math.round(pct)+'% of budget',cls:'b-amber',t:esc(p.name)+' is close to its material budget.',m:bud-sp});});
-  const L=leakData();
-  const g=L.ghost.reduce((s,x)=>s+x.value,0);
-  if(g>0)a.push({p:1,tag:'Chase supplier',cls:'b-red',t:'You paid for materials that never arrived.',m:g,kind:'leak',id:'ghost'});
-  const o=L.over.reduce((s,x)=>s+x.value,0);
-  if(o>0)a.push({p:2,tag:'Check invoice',cls:'b-red',t:'A supplier billed more than the order was worth.',m:o,kind:'leak',id:'over'});
-  if(L.dup.length)a.push({p:2,tag:L.dup.length+' repeat'+(L.dup.length===1?'':'s'),cls:'b-amber',
-    t:'The same material was ordered twice for one site within two weeks.',m:L.dup.reduce((s,x)=>s+x.value,0),kind:'leak',id:'dup'});
-  const sp=stockRows().filter(r=>r.spare>0);
-  if(sp.length)a.push({p:2,tag:sp.length+' with spare',cls:'b-amber',
-    t:'Over-delivered materials should still be on site. Check before buying.',m:null,kind:'stock'});
-  const invIds=new Set(C.invoices.map(v=>v.request_id));
-  C.requests.filter(inSite).filter(r=>r.status==='delivered'&&!invIds.has(r.id)).forEach(r=>{
-    a.push({p:2,tag:'No invoice',cls:'b-amber',t:esc(pName(r.project_id))+' materials are on site but no supplier invoice entered.',
-      m:valOf([r]),id:r.id,kind:'req'});});
-  return a.sort((x,y)=>x.p-y.p||((y.m||0)-(x.m||0)));}
-function actGo(i){
-  const x=(window.__ACT||[])[i]; if(!x)return;
-  if(x.kind==='req')openRequest(x.id);
-  else if(x.kind==='leak')showLeak(x.id);
-  else if(x.kind==='stock'){STOCKF='spare';renderStockPills();renderStock();
-    document.getElementById('stockBox').scrollIntoView({behavior:'smooth',block:'center'});}}
-function renderActions(){
-  const el=document.getElementById('actionsBox'), a=buildActions(); window.__ACT=a;
-  if(!a.length){el.innerHTML='<div class="empty">Nothing needs attention. Everything is on track.</div>';return;}
-  el.innerHTML='<table><tbody>'+a.slice(0,10).map((x,i)=>
-    '<tr class="'+(x.kind?'clickrow':'')+'" '+(x.kind?'onclick="actGo('+i+')"':'')+'>'+
-    '<td style="width:152px;"><span class="b '+x.cls+'">'+esc(x.tag)+'</span></td>'+
-    '<td>'+x.t+'</td><td class="n" style="width:140px;font-weight:650;">'+(x.m?aed(x.m)+' AED':'')+'</td></tr>').join('')+
-    '</tbody></table>'+(a.length>10?'<div class="note">'+(a.length-10)+' more items below.</div>':'');}
-
-function renderKpis(){
-  const rs=C.requests.filter(inSite), per=rs.filter(inPeriod);
-  const invIds=new Set(C.invoices.map(v=>v.request_id));
-  const owedRs=rs.filter(r=>['delivered','delivery_started'].includes(r.status)&&!invIds.has(r.id));
-  const pending=rs.filter(r=>!r.approved_at&&['parsed','parsing'].includes(r.status)).length;
-  const bud=SITE==='all'?C.projects.reduce((s,p)=>s+(+p.material_budget_aed||0),0)
-    :(+((C.projects.find(p=>p.id===SITE)||{}).material_budget_aed)||0);
-  const spentAll=valOf(rs), pct=bud?spentAll/bud*100:0;
-  const bb=!bud?'':pct>=100?'<span class="b b-red">over budget</span>'
-    :pct>=80?'<span class="b b-amber">'+Math.round(pct)+'% used</span>':'<span class="b b-green">'+Math.round(pct)+'% used</span>';
-  document.getElementById('kpis').innerHTML=
-    kpi('Ordered · '+periodLabel().toLowerCase(),aed(valOf(per)),per.length+' request'+(per.length===1?'':'s'))+
-    kpi('Billed by suppliers',aed(billOf(per)),'same period')+
-    kpi('On site, not yet billed',aed(valOf(owedRs)),owedRs.length+' waiting')+
-    kpi('Budget',bud?aed(bud):'not set',bud?aed(bud-spentAll)+' left':'ask Ambika to set it',bb)+
-    kpi('Waiting for approval',pending,pending?'needs a manager':'all clear');}
-function kpi(l,v,f,badge){return '<div class="kpi"><div class="lb"><span>'+esc(l)+'</span>'+(badge||'')+'</div>'+
-  '<div class="vl">'+v+'</div><div class="ft">'+esc(f)+'</div></div>';}
-
-const PERIODS=[['month','This month'],['m3','Last 3 months'],['m6','Last 6 months'],['all','Since we started']];
-const GROUPS=[['site','By site'],['tech','By technician'],['mat','By material']];
-function periodLabel(){return (PERIODS.find(p=>p[0]===PERIOD)||[])[1]||'';}
-function renderPeriodPills(){document.getElementById('periodPills').innerHTML=PERIODS.map(([k,l])=>
-  '<div class="pill '+(PERIOD===k?'on':'')+'" onclick="setPeriod(\''+k+'\')">'+l+'</div>').join('');}
-function renderGroupPills(){document.getElementById('groupPills').innerHTML=GROUPS.map(([k,l])=>
-  '<div class="pill '+(GROUP===k?'on':'')+'" onclick="setGroup(\''+k+'\')">'+l+'</div>').join('');}
-function setPeriod(k){PERIOD=k;renderPeriodPills();renderSpend();renderKpis();renderTechBoard();}
-function setGroup(k){GROUP=k;renderGroupPills();renderSpend();}
-
-function spendRows(){
-  const q=(document.getElementById('spendSearch')?.value||'').toLowerCase().trim();
-  const rs=C.requests.filter(inSite).filter(inPeriod), rid=new Set(rs.map(r=>r.id));
-  const rById={}; C.requests.forEach(r=>rById[r.id]=r);
-  const map={};
-  C.items.filter(i=>rid.has(i.request_id)).forEach(i=>{
-    if(q&&!String(i.raw_name||'').toLowerCase().includes(q))return;
-    const r=rById[i.request_id]; if(!r)return;
-    let k,label;
-    if(GROUP==='site'){k=r.project_id||'none';label=pName(r.project_id);}
-    else if(GROUP==='tech'){k=r.technician_id||'none';label=tName(r.technician_id);}
-    else {k=String(i.raw_name||'').trim().toLowerCase();label=(i.raw_name||'').trim();}
-    map[k]=map[k]||{label,value:0,qty:0,lines:0};
-    map[k].value+=+i.expected_amount_aed||0; map[k].qty+=+i.requested_qty||0; map[k].lines++;});
-  return Object.values(map).sort((a,b)=>b.value-a.value);}
-function renderSpend(){
-  const rows=spendRows(), total=rows.reduce((s,r)=>s+r.value,0);
-  const el=document.getElementById('spendTable');
-  const q=(document.getElementById('spendSearch')?.value||'').trim();
-  if(!rows.length){el.innerHTML='<div class="empty">Nothing in this period'+(q?' matching "'+esc(q)+'"':'')+'.</div>';
-    if(CH.s){CH.s.destroy();delete CH.s;} return;}
-  const hdr=GROUP==='mat'?'Material':GROUP==='tech'?'Technician':'Site';
-  el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;">'+
-      '<div style="font-size:12.5px;color:var(--muted);">'+esc(periodLabel())+(q?' · "'+esc(q)+'"':'')+'</div>'+
-      '<div style="font-size:21px;font-weight:650;letter-spacing:-.02em;">'+aed(total)+
-      ' <span style="font-size:12px;color:var(--muted);font-weight:500;">AED</span></div></div>'+
-    '<table><thead><tr><th>'+hdr+'</th><th class="n">Lines</th><th class="n">Qty</th><th class="n">Value AED</th><th class="n">Share</th></tr></thead><tbody>'+
-    rows.slice(0,14).map(r=>'<tr><td><b>'+esc(r.label)+'</b></td><td class="n">'+r.lines+'</td>'+
-      '<td class="n">'+num(r.qty)+'</td><td class="n">'+aed(r.value)+'</td>'+
-      '<td class="n">'+(total?(r.value/total*100).toFixed(0):0)+'%</td></tr>').join('')+'</tbody></table>';
-  if(CH.s)CH.s.destroy();
-  const top=rows.slice(0,8);
-  CH.s=new Chart(document.getElementById('chSpend'),{type:'bar',
-    data:{labels:top.map(r=>r.label),datasets:[{label:'AED',data:top.map(r=>r.value),
-      backgroundColor:GROUP==='tech'?CL.sand:GROUP==='mat'?CL.teal2:CL.teal,borderRadius:6,barPercentage:.72}]},
-    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},
-      scales:{x:{beginAtZero:true,grid:{color:CL.line},ticks:{color:CL.muted,font:{size:10.5}}},
-              y:{grid:{display:false},ticks:{color:CL.ink,font:{size:11.5}}}}}});}
-
-function renderBudget(){
-  const el=document.getElementById('budgetBox');
-  document.getElementById('budgetSub').textContent=isAdmin()
-    ? 'Material budget per site against what has been committed. Click a budget to change it.'
-    : 'Material budget per site against what has been committed. Only the Managing Director can change these.';
-  const rows=C.projects.filter(p=>SITE==='all'||p.id===SITE);
-  el.innerHTML='<table><thead><tr><th>Site</th><th class="n">Budget AED</th><th class="n">Committed</th>'+
-    '<th class="n">Left</th><th style="width:240px;">Used</th></tr></thead><tbody>'+
-    rows.map(p=>{
-      const bud=+p.material_budget_aed||0, sp=valOf(C.requests.filter(r=>r.project_id===p.id));
-      const pct=bud?Math.min(999,sp/bud*100):0;
-      const col=pct>=100?'var(--red)':pct>=80?'var(--amber)':'var(--teal)';
-      const badge=!bud?'':pct>=100?'<span class="b b-red">over</span>':pct>=80?'<span class="b b-amber">'+Math.round(pct)+'%</span>':'';
-      const cell=isAdmin()
-        ? '<span style="border-bottom:1px dashed var(--faint);cursor:pointer;" onclick="editBudget(\''+p.id+'\')">'+(bud?aed(bud):'set budget')+'</span>'
-        : (bud?aed(bud):'—');
-      return '<tr><td><b>'+esc(p.name)+'</b> '+badge+'</td><td class="n">'+cell+'</td>'+
-        '<td class="n">'+aed(sp)+'</td><td class="n" style="color:'+(bud&&sp>bud?'var(--red)':'inherit')+'">'+(bud?aed(bud-sp):'—')+'</td>'+
-        '<td><div class="bar"><span style="width:'+Math.min(100,pct)+'%;background:'+col+';"></span></div>'+
-        '<div style="font-size:11px;color:var(--muted);margin-top:4px;">'+(bud?pct.toFixed(0)+'% used':'no budget set')+'</div></td></tr>';
-    }).join('')+'</tbody></table>';}
-async function editBudget(id){
-  const p=C.projects.find(x=>x.id===id); if(!p)return;
-  const v=prompt('Material budget for '+p.name+' in AED:',p.material_budget_aed||'');
-  if(v===null)return;
-  const n=Number(String(v).replace(/[^0-9.]/g,''));
-  if(!n||n<=0){toast('Enter a number greater than zero');return;}
-  const {error}=await db.from('projects').update({material_budget_aed:n}).eq('id',id);
-  if(error){toast('Could not save: '+error.message);return;}
-  toast('Budget updated');loadAll();}
-
-function renderFeed(){
-  const el=document.getElementById('feedBox'), rs=C.requests.filter(inSite).slice(0,9);
-  if(!rs.length){el.innerHTML='<div class="empty">No requests yet.</div>';return;}
-  el.innerHTML='<div class="feed">'+rs.map(r=>{
-    const [txt,cls]=stageOf(r), n=itemsOf(r).length, v=valOf([r]);
-    const needs=!r.approved_at&&['parsed','parsing'].includes(r.status);
-    return '<div class="fitem"><div class="av">'+esc(initials(tName(r.technician_id)))+'</div>'+
-      '<div class="fmain" style="cursor:pointer;" onclick="openRequest(\''+r.id+'\')">'+
-        '<div class="t">'+esc(tName(r.technician_id))+' · '+esc(pName(r.project_id))+'</div>'+
-        '<div class="m">'+(n?n+' materials · '+aed(v)+' AED':'no materials yet')+' · '+ago(r.created_at)+'</div></div>'+
-      '<span class="b '+cls+'">'+esc(txt)+'</span>'+
-      (needs&&canWrite()?'<button class="approve sm" onclick="event.stopPropagation();approve(\''+r.id+'\')">Approve</button>':'')+
-      '</div>';}).join('')+'</div>';}
-function renderTechBoard(){
-  const el=document.getElementById('techBoard');
-  const dByItem={}; C.ditems.forEach(d=>dByItem[d.request_item_id]=d);
-  const m={};
-  C.requests.filter(inSite).filter(inPeriod).forEach(r=>{
-    const k=r.technician_id||'none'; m[k]=m[k]||{reqs:0,value:0,lines:0,short:0}; m[k].reqs++;
-    itemsOf(r).forEach(i=>{m[k].lines++;m[k].value+=+i.expected_amount_aed||0;
-      const d=dByItem[i.id]; if(d&&+d.qty_variance<0)m[k].short++;});});
-  const rows=Object.entries(m).map(([id,v])=>({name:tName(id),...v})).sort((a,b)=>b.value-a.value);
-  if(!rows.length){el.innerHTML='<div class="empty">No activity this period.</div>';return;}
-  el.innerHTML='<div style="font-size:10.5px;color:var(--faint);font-weight:650;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Leaderboard · '+esc(periodLabel())+'</div>'+
-    '<table><thead><tr><th>Technician</th><th class="n">Requests</th><th class="n">Value AED</th><th class="n">Short</th></tr></thead><tbody>'+
-    rows.map(r=>'<tr><td><b>'+esc(r.name)+'</b></td><td class="n">'+r.reqs+'</td><td class="n">'+aed(r.value)+'</td>'+
-      '<td class="n">'+(r.short?'<span class="b b-amber">'+r.short+'</span>':'—')+'</td></tr>').join('')+'</tbody></table>';}
-async function approve(id){
-  if(!canWrite())return;
-  const {error}=await db.from('material_requests').update({approved_at:new Date().toISOString(),approved_by:ME.id}).eq('id',id);
-  if(error){toast('Could not approve: '+error.message);return;}
-  toast('Approved — 3-day invoice clock started');closeOver();loadAll();}
-
-function renderStagePills(){
-  const rs=C.requests.filter(inSite), counts={};
-  rs.forEach(r=>{const k=stageOf(r)[0];counts[k]=(counts[k]||0)+1;});
-  document.getElementById('stagePills').innerHTML=
-    '<div class="pill '+(STAGE===''?'on':'')+'" onclick="setStage(\'\')">All<span class="n">'+rs.length+'</span></div>'+
-    Object.entries(counts).map(([k,v])=>'<div class="pill '+(STAGE===k?'on':'')+'" onclick="setStage(&quot;'+esc(k)+'&quot;)">'+
-      esc(k)+'<span class="n">'+v+'</span></div>').join('');}
-function setStage(s){STAGE=s;renderStagePills();renderRequests();}
-function renderRequests(){
-  const el=document.getElementById('requestsBox');
-  let rs=C.requests.filter(inSite);
-  if(STAGE)rs=rs.filter(r=>stageOf(r)[0]===STAGE);
-  document.getElementById('reqSub').textContent=rs.length+' of '+C.requests.filter(inSite).length+' shown · click a row for the full breakdown';
-  if(!rs.length){el.innerHTML='<div class="empty">Nothing here.</div>';return;}
-  el.innerHTML='<table><thead><tr>'+(SITE==='all'?'<th>Site</th>':'')+
-    '<th>Technician</th><th>Stage</th><th class="n">Materials</th><th class="n">Ordered AED</th>'+
-    '<th class="n">Billed AED</th><th>Raised</th><th></th></tr></thead><tbody>'+
-    rs.map(r=>{const [txt,cls]=stageOf(r), its=itemsOf(r), v=valOf([r]), b=billOf([r]);
-      const needs=!r.approved_at&&['parsed','parsing'].includes(r.status);
-      return '<tr class="clickrow" onclick="openRequest(\''+r.id+'\')">'+
-        (SITE==='all'?'<td><b>'+esc(pName(r.project_id))+'</b></td>':'')+
-        '<td>'+esc(tName(r.technician_id))+'</td><td><span class="b '+cls+'">'+esc(txt)+'</span></td>'+
-        '<td class="n">'+(its.length||'—')+'</td><td class="n">'+(its.length?aed(v):'—')+'</td>'+
-        '<td class="n">'+(b?aed(b):'—')+'</td><td>'+fmtDate(r.created_at)+'</td>'+
-        '<td class="n">'+(needs&&canWrite()?'<button class="approve sm" onclick="event.stopPropagation();approve(\''+r.id+'\')">Approve</button>':'')+'</td></tr>';
-    }).join('')+'</tbody></table>';}
-
-function openOver(t,s,h){
-  document.getElementById('overTitle').innerHTML=t;
-  document.getElementById('overSub').innerHTML=s||'';
-  document.getElementById('overBody').innerHTML=h;
-  document.getElementById('over').classList.add('on');
-  document.getElementById('scrim').classList.add('on');}
-function closeOver(){document.getElementById('over').classList.remove('on');
-  document.getElementById('scrim').classList.remove('on');}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeOver();});
-
-function openRequest(id){
-  const r=C.requests.find(x=>x.id===id); if(!r)return;
-  const its=itemsOf(r), v=valOf([r]), b=billOf([r]);
-  const dByItem={}; C.ditems.forEach(d=>dByItem[d.request_item_id]=d);
-  const [txt,cls]=stageOf(r);
-  const needs=!r.approved_at&&['parsed','parsing'].includes(r.status);
-  const rows=its.map(i=>{const d=dByItem[i.id], got=d?+d.received_qty:null;
-    const vr=d&&+d.qty_variance!==0?' <span class="b b-red">'+(+d.qty_variance>0?'+':'')+d.qty_variance+'</span>':'';
-    return '<tr><td class="n">'+(i.line_no??'—')+'</td><td>'+esc(i.raw_name)+'</td>'+
-      '<td class="n">'+num(i.requested_qty)+'</td>'+
-      '<td class="n">'+(got==null?'<span style="color:var(--faint)">not yet</span>':num(got)+vr)+'</td>'+
-      '<td>'+esc(i.unit||'')+'</td><td class="n">'+aed(i.expected_amount_aed)+'</td></tr>';}).join('');
-  openOver(esc(pName(r.project_id)),
-    esc(tName(r.technician_id))+' · raised '+fmtDate(r.created_at)+' · <span class="b '+cls+'">'+esc(txt)+'</span>',
-    '<div class="kpis" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">'+
-      '<div class="kpi"><div class="lb">Ordered</div><div class="vl" style="font-size:22px;">'+aed(v)+'</div></div>'+
-      '<div class="kpi"><div class="lb">Billed</div><div class="vl" style="font-size:22px;">'+(b?aed(b):'—')+'</div></div></div>'+
-    (needs&&canWrite()?'<button class="approve" style="width:100%;margin-bottom:18px;" onclick="approve(\''+r.id+'\')">Approve this request</button>':'')+
-    (r.approved_at?'<div class="note" style="margin:0 0 16px;"><b>Approved</b> '+fmtDate(r.approved_at)+'</div>':'')+
-    (its.length?'<table><thead><tr><th class="n">#</th><th>Material</th><th class="n">Ordered</th><th class="n">Received</th><th>Unit</th><th class="n">AED</th></tr></thead><tbody>'+rows+'</tbody></table>'
-      :'<div class="empty">No materials read from this request yet.</div>')+
-    (r.note?'<div class="note"><b>Note.</b> '+esc(r.note)+'</div>':''));}
-
-function openQuickLog(){
-  const sites=C.projects.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
-  const techs=C.techs.map(t=>'<option value="'+t.id+'">'+esc(t.full_name)+'</option>').join('');
-  openOver('Quick log','Attribute a purchase or a phoned-in request to a site and technician.',
-    '<div class="fld"><label>Site</label><select id="qlSite">'+sites+'</select></div>'+
-    '<div class="fld"><label>Technician</label><select id="qlTech">'+techs+'</select></div>'+
-    '<div class="fld"><label>What is this?</label><select id="qlKind">'+
-      '<option value="bought">Already bought — cash or card purchase</option>'+
-      '<option value="request">A request phoned in by a technician</option></select></div>'+
-    '<div class="fld"><label>Materials</label><div id="qlItems"></div>'+
-      '<button class="ghost sm" onclick="qlAdd()">+ Add line</button></div>'+
-    '<div class="fld"><label>Note (optional)</label><textarea id="qlNote" rows="2" placeholder="e.g. bought from Al Aweer, cash"></textarea></div>'+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin:18px 0;">'+
-      '<div style="font-size:13px;">Total: <b id="qlTotal">0.00</b> AED</div>'+
-      '<button onclick="saveQuickLog()">Save</button></div>'+
-    '<p id="qlMsg" style="font-size:12.5px;color:var(--teal);"></p>');
-  qlAdd();}
-function qlAdd(){
-  const d=document.createElement('div'); d.className='g3';
-  d.innerHTML='<input placeholder="material" class="q-n" /><input type="number" step="0.01" placeholder="qty" class="q-q" />'+
-    '<input type="number" step="0.01" placeholder="AED total" class="q-v" oninput="qlTotal()" />'+
-    '<button class="ghost sm" onclick="this.parentNode.remove();qlTotal()">&times;</button>';
-  document.getElementById('qlItems').appendChild(d);}
-function qlTotal(){let t=0;document.querySelectorAll('#qlItems .g3').forEach(r=>t+=(+r.querySelector('.q-v').value||0));
-  const e=document.getElementById('qlTotal'); if(e)e.textContent=t.toFixed(2); return t;}
-async function saveQuickLog(){
-  const msg=document.getElementById('qlMsg');
-  try{
-    const site=document.getElementById('qlSite').value, tech=document.getElementById('qlTech').value;
-    const kind=document.getElementById('qlKind').value, note=document.getElementById('qlNote').value.trim();
-    if(!site||!tech)throw new Error('pick a site and a technician');
-    const lines=[];let n=0;
-    document.querySelectorAll('#qlItems .g3').forEach(r=>{
-      const nm=r.querySelector('.q-n').value.trim();
-      const q=+r.querySelector('.q-q').value||null, v=+r.querySelector('.q-v').value||null;
-      if(!nm)return; n++; lines.push({raw_name:nm,requested_qty:q,expected_amount_aed:v,unit:'',line_no:n});});
-    if(!lines.length)throw new Error('add at least one material');
-    const req=await db.from('material_requests').insert({
-      project_id:site,technician_id:tech,status:kind==='bought'?'delivered':'parsed',
-      logged_manually:true,note:note||null,
-      approved_at:kind==='bought'?new Date().toISOString():null,
-      approved_by:kind==='bought'?ME.id:null}).select().single();
-    if(req.error)throw req.error;
-    const ins=await db.from('request_items').insert(lines.map(l=>({...l,request_id:req.data.id})));
-    if(ins.error)throw ins.error;
-    msg.textContent='Saved ✓'; toast('Logged against '+pName(site));
-    setTimeout(()=>{closeOver();loadAll();},700);
-  }catch(e){msg.textContent='Error: '+(e.message||e);}}
-
-function stockRows(){
-  const rById={}; C.requests.forEach(r=>rById[r.id]=r);
-  const dByItem={}; C.ditems.forEach(d=>dByItem[d.request_item_id]=d);
-  const key=s=>String(s||'').trim().toLowerCase(), map={};
-  C.items.forEach(i=>{
-    const k=key(i.raw_name); if(!k)return;
-    const r=rById[i.request_id]; if(!r)return;
-    const d=dByItem[i.id], ord=+i.requested_qty||0, got=d?+d.received_qty||0:0;
-    map[k]=map[k]||{name:(i.raw_name||'').trim(),unit:i.unit||'',ordered:0,arrived:0,spare:0,owed:0,sites:{},value:0};
-    const m=map[k]; m.ordered+=ord; m.arrived+=got; m.value+=+i.expected_amount_aed||0;
-    if(got>ord)m.spare+=got-ord;
-    if(d){if(got<ord)m.owed+=ord-got;} else if(['delivered','invoiced','closed'].includes(r.status))m.owed+=ord;
-    const pn=pName(r.project_id); m.sites[pn]=(m.sites[pn]||0)+got;});
-  return Object.values(map);}
-function renderStockPills(){
-  const all=stockRows(), sp=all.filter(r=>r.spare>0).length, ow=all.filter(r=>r.owed>0).length;
-  document.getElementById('stockPills').innerHTML=
-    '<div class="pill '+(STOCKF===''?'on':'')+'" onclick="setStock(\'\')">Everything<span class="n">'+all.length+'</span></div>'+
-    '<div class="pill '+(STOCKF==='spare'?'on':'')+'" onclick="setStock(\'spare\')">We have spare<span class="n">'+sp+'</span></div>'+
-    '<div class="pill '+(STOCKF==='owed'?'on':'')+'" onclick="setStock(\'owed\')">Supplier owes us<span class="n">'+ow+'</span></div>';}
-function setStock(f){STOCKF=f;renderStockPills();renderStock();}
-function renderStock(){
-  const el=document.getElementById('stockBox');
-  let rows=stockRows();
-  if(STOCKF==='spare')rows=rows.filter(r=>r.spare>0);
-  if(STOCKF==='owed')rows=rows.filter(r=>r.owed>0);
-  rows.sort((a,b)=>(b.spare-a.spare)||(b.owed-a.owed)||(b.value-a.value));
-  if(!rows.length){el.innerHTML='<div class="empty">Nothing to show.</div>';return;}
-  el.innerHTML='<table><thead><tr><th>Material</th><th class="n">Ordered</th><th class="n">Arrived</th>'+
-    '<th class="n">Supplier owes</th><th class="n">Spare</th><th>Where it went</th><th class="n">Value AED</th></tr></thead><tbody>'+
-    rows.slice(0,40).map(r=>{
-      const w=Object.entries(r.sites).filter(([k,v])=>v>0)
-        .map(([k,v])=>esc(k)+' <span style="color:var(--faint)">'+num(v)+'</span>').join(' · ')
-        ||'<span style="color:var(--faint)">not delivered yet</span>';
-      return '<tr><td><b>'+esc(r.name)+'</b>'+(r.unit?' <span style="color:var(--faint)">('+esc(r.unit)+')</span>':'')+'</td>'+
-        '<td class="n">'+num(r.ordered)+'</td><td class="n">'+num(r.arrived)+'</td>'+
-        '<td class="n">'+(r.owed>0?'<span class="b b-red">'+num(r.owed)+'</span>':'—')+'</td>'+
-        '<td class="n">'+(r.spare>0?'<span class="b b-amber">'+num(r.spare)+'</span>':'—')+'</td>'+
-        '<td style="font-size:12px;">'+w+'</td><td class="n">'+aed(r.value)+'</td></tr>';}).join('')+'</tbody></table>';}
-
-function leakData(){
-  const rById={}; C.requests.forEach(r=>rById[r.id]=r);
-  const dByItem={}; C.ditems.forEach(d=>dByItem[d.request_item_id]=d);
-  const ghost=[],over=[],dup=[],price=[];
-  C.items.forEach(i=>{
-    const r=rById[i.request_id]; if(!r||!inSite(r))return;
-    if(!['invoiced','closed'].includes(r.status))return;
-    const d=dByItem[i.id], ord=+i.requested_qty||0, got=d?+d.received_qty||0:0;
-    if(ord<=0||got>=ord)return;
-    ghost.push({site:pName(r.project_id),material:i.raw_name,short:ord-got,unit:i.unit||'',
-      value:((+i.expected_amount_aed||0)/ord)*(ord-got)});});
-  C.requests.filter(inSite).forEach(r=>{const o=valOf([r]),b=billOf([r]);
-    if(o>0&&b>o)over.push({site:pName(r.project_id),ordered:o,billed:b,value:b-o,pct:(b-o)/o*100});});
-  const seen={};
-  C.items.forEach(i=>{const r=rById[i.request_id]; if(!r||!inSite(r))return;
-    const k=(r.project_id||'')+'|'+String(i.raw_name||'').trim().toLowerCase();
-    (seen[k]=seen[k]||[]).push({r,i});});
+/* ---------- checks ---------- */
+function dupRequests(){
+  const out=[],seen={},rb={};C.requests.forEach(r=>rb[r.id]=r);
+  C.items.forEach(i=>{const r=rb[i.request_id];if(!r)return;
+    const k=(r.project_id||'')+'|'+String(i.raw_name||'').trim().toLowerCase();(seen[k]=seen[k]||[]).push({r,i});});
   Object.values(seen).forEach(l=>{if(l.length<2)return;
     l.sort((a,b)=>new Date(a.r.created_at)-new Date(b.r.created_at));
     for(let n=1;n<l.length;n++){const g=(new Date(l[n].r.created_at)-new Date(l[n-1].r.created_at))/864e5;
-      if(g<=14)dup.push({site:pName(l[n].r.project_id),material:l[n].i.raw_name,days:Math.round(g),
-        value:+l[n].i.expected_amount_aed||0});}});
-  const matById={}; C.materials.forEach(m=>matById[m.id]=m);
-  const byMat={};
-  C.iitems.forEach(li=>{const m=matById[li.material_id]; if(!m)return;
-    (byMat[m.id]=byMat[m.id]||{name:m.canonical_name,rows:[]}).rows.push(+li.unit_price_aed||0);});
-  Object.values(byMat).forEach(m=>{if(m.rows.length<2)return;
-    const mx=Math.max(...m.rows), rest=m.rows.filter(v=>v!==mx);
-    const av=rest.reduce((a,b)=>a+b,0)/rest.length;
-    if(av>0&&mx>av*1.15)price.push({material:m.name,paid:mx,usual:av,pct:(mx/av-1)*100,value:mx-av});});
-  return {ghost,over,dup,price};}
-function renderLeaks(){
-  const L=leakData(); window.__L=L;
-  const sum=a=>a.reduce((s,x)=>s+(x.value||0),0);
-  const card=(k,l,v,f)=>'<div class="kpi" style="cursor:pointer;'+(LEAK===k?'border-color:var(--teal);background:var(--teal-50);':'')+
-    '" onclick="showLeak(\''+k+'\')"><div class="lb">'+l+'</div><div class="vl" style="font-size:23px;">'+v+'</div>'+
-    '<div class="ft">'+f+'</div></div>';
-  document.getElementById('leakCards').innerHTML=
-    card('ghost','Paid for, never arrived',aed(sum(L.ghost)),L.ghost.length+' lines')+
-    card('over','Billed above the order',aed(sum(L.over)),L.over.length+' requests')+
-    card('dup','Possible double ordering',aed(sum(L.dup)),L.dup.length+' repeats')+
-    card('price','Above your usual price',L.price.length,'materials');
-  paintLeak();}
-function showLeak(k){LEAK=k;renderLeaks();
-  document.getElementById('leakDetail').scrollIntoView({behavior:'smooth',block:'center'});}
-function paintLeak(){
-  const L=window.__L||leakData(), rows=L[LEAK]||[], el=document.getElementById('leakDetail');
-  if(!rows.length){el.innerHTML='<div class="empty">Nothing found here — good.</div>';return;}
-  let h,b;
-  if(LEAK==='ghost'){h='<tr><th>Site</th><th>Material</th><th class="n">Short by</th><th class="n">Lost AED</th></tr>';
-    b=rows.sort((a,b)=>b.value-a.value).map(r=>'<tr><td>'+esc(r.site)+'</td><td><b>'+esc(r.material)+'</b></td>'+
-      '<td class="n"><span class="b b-red">'+num(r.short)+' '+esc(r.unit)+'</span></td><td class="n">'+aed(r.value)+'</td></tr>').join('');}
-  else if(LEAK==='over'){h='<tr><th>Site</th><th class="n">Ordered</th><th class="n">Billed</th><th class="n">Extra AED</th><th class="n">Over by</th></tr>';
-    b=rows.sort((a,b)=>b.value-a.value).map(r=>'<tr><td>'+esc(r.site)+'</td><td class="n">'+aed(r.ordered)+'</td>'+
-      '<td class="n">'+aed(r.billed)+'</td><td class="n"><b>'+aed(r.value)+'</b></td>'+
-      '<td class="n"><span class="b b-red">'+r.pct.toFixed(0)+'%</span></td></tr>').join('');}
-  else if(LEAK==='dup'){h='<tr><th>Site</th><th>Material</th><th class="n">Days apart</th><th class="n">Second order AED</th></tr>';
-    b=rows.sort((a,b)=>b.value-a.value).map(r=>'<tr><td>'+esc(r.site)+'</td><td><b>'+esc(r.material)+'</b></td>'+
-      '<td class="n"><span class="b b-amber">'+r.days+'</span></td><td class="n">'+aed(r.value)+'</td></tr>').join('');}
-  else {h='<tr><th>Material</th><th class="n">Highest paid</th><th class="n">Usual</th><th class="n">Difference</th></tr>';
-    b=rows.sort((a,b)=>b.pct-a.pct).map(r=>'<tr><td><b>'+esc(r.material)+'</b></td><td class="n">'+aed(r.paid)+'</td>'+
-      '<td class="n">'+aed(r.usual)+'</td><td class="n"><span class="b b-red">+'+r.pct.toFixed(0)+'%</span></td></tr>').join('');}
-  el.innerHTML='<table><thead>'+h+'</thead><tbody>'+b+'</tbody></table>';}
+      if(g<=14)out.push({site:pName(l[n].r.project_id),material:l[n].i.raw_name,days:Math.round(g),
+        tech:uName(l[n].r.technician_id),value:+l[n].i.expected_amount_aed||0,id:l[n].r.id,
+        firstDate:l[n-1].r.created_at,secondDate:l[n].r.created_at});}});
+  return out;}
+function invoiceProblems(){
+  const out=[],rb={};C.requests.forEach(r=>rb[r.id]=r);
+  const bySig={};
+  C.invoices.forEach(v=>{
+    const r=rb[v.request_id];
+    const d=new Date(v.submitted_at);
+    if(r&&d<new Date(r.created_at))
+      out.push({t:'Dated before the request',v,detail:'Invoice '+day(v.submitted_at)+' is earlier than the request '+day(r.created_at)});
+    if(d>new Date(Date.now()+864e5))
+      out.push({t:'Dated in the future',v,detail:'Invoice dated '+day(v.submitted_at)});
+    const sig=v.request_id+'|'+v.supplier_id+'|'+Number(v.total_amount_aed).toFixed(2);
+    (bySig[sig]=bySig[sig]||[]).push(v);});
+  Object.values(bySig).forEach(l=>{if(l.length>1)
+    out.push({t:'Possible duplicate invoice',v:l[1],detail:l.length+' invoices with the same request, merchant and amount'});});
+  return out;}
+function dupPhotos(){
+  const by={};C.photos.forEach(p=>{const k=String(p.wa_media_id||p.storage_path||'').trim();if(!k)return;(by[k]=by[k]||[]).push(p);});
+  return Object.values(by).filter(l=>l.length>1).map(l=>({key:l[0].wa_media_id||l[0].storage_path,n:l.length,photos:l}));}
 
-function renderSuppliers(){
-  const el=document.getElementById('suppliersBox'), by={};
-  C.suppliers.forEach(s=>by[s.id]={name:s.name,flagged:s.is_flagged,inv:0,total:0});
-  C.invoices.forEach(v=>{const s=by[v.supplier_id];if(!s)return;s.inv++;s.total+=+v.total_amount_aed||0;});
-  const rows=Object.values(by).filter(s=>s.inv>0).sort((a,b)=>b.total-a.total);
-  if(!rows.length){el.innerHTML='<div class="empty">No supplier invoices recorded yet.</div>';return;}
-  const g=rows.reduce((s,r)=>s+r.total,0);
-  el.innerHTML='<table><thead><tr><th>Supplier</th><th class="n">Invoices</th><th class="n">Total AED</th>'+
-    '<th class="n">Average</th><th style="width:200px;">Share of spend</th></tr></thead><tbody>'+
-    rows.map(s=>{const pc=g?s.total/g*100:0;
-      return '<tr><td><b>'+esc(s.name)+'</b>'+(s.flagged?' <span class="b b-red">flagged</span>':'')+'</td>'+
-      '<td class="n">'+s.inv+'</td><td class="n">'+aed(s.total)+'</td><td class="n">'+aed(s.total/s.inv)+'</td>'+
-      '<td><div class="bar"><span style="width:'+pc+'%;background:var(--teal);"></span></div>'+
-      '<div style="font-size:11px;color:var(--muted);margin-top:4px;">'+pc.toFixed(0)+'%</div></td></tr>';}).join('')+'</tbody></table>';}
-function renderTechnicians(){
-  const el=document.getElementById('techBox');
-  if(!C.techs.length){el.innerHTML='<div class="empty">No technicians yet.</div>';return;}
-  el.innerHTML='<table><thead><tr><th>Name</th><th>Phone</th><th>Status</th><th></th></tr></thead><tbody>'+
-    C.techs.map(u=>'<tr><td><b>'+esc(u.full_name)+'</b></td><td>'+esc(u.phone_e164)+'</td>'+
-      '<td>'+(u.is_active?'<span class="b b-green">active</span>':'<span class="b b-grey">inactive</span>')+'</td>'+
-      '<td class="n">'+(isAdmin()?'<button class="ghost sm" onclick="toggleTech(\''+u.id+'\','+(!u.is_active)+')">'+
-      (u.is_active?'Deactivate':'Activate')+'</button>':'')+'</td></tr>').join('')+'</tbody></table>';}
-async function addTechnician(){
-  const msg=document.getElementById('techMsg');
-  const n=document.getElementById('techName').value.trim();
-  const p=document.getElementById('techPhone').value.trim().replace(/[^0-9]/g,'');
-  if(!n||!p){msg.textContent='Enter both a name and a phone number.';return;}
-  const {error}=await db.from('users').insert({full_name:n,role:'technician',phone_e164:p,is_active:true,created_by:ME.id});
-  if(error){msg.textContent='Error: '+error.message;return;}
-  msg.textContent='Added ✓';document.getElementById('techName').value='';document.getElementById('techPhone').value='';
-  toast('Technician added');loadAll();}
-async function toggleTech(id,a){await db.from('users').update({is_active:a}).eq('id',id);
-  toast(a?'Activated':'Deactivated');loadAll();}
+/* ---------- nav ---------- */
+const TABS=[
+  {k:'overview',t:'Overview'},
+  {k:'approvals',t:'Approvals',md:true,count:()=>pending().length},
+  {k:'requests',t:'Requests'},
+  {k:'spend',t:'Spend'},
+  {k:'materials',t:'Materials'},
+  {k:'invoices',t:'Invoices',ops:true},
+  {k:'checks',t:'Checks',count:()=>dupRequests().length+invoiceProblems().length+dupPhotos().length},
+  {k:'merchants',t:'Merchants'},
+  {k:'admin',t:'Manual overrides',mdOnly:true}];
+function renderNav(){
+  const el=document.getElementById('navItems');
+  el.innerHTML='<div class="navsec">Daily</div>'+
+    TABS.filter(t=>['overview','approvals','requests'].includes(t.k)).map(navItem).join('')+
+    '<div class="navsec">Money</div>'+
+    TABS.filter(t=>['spend','invoices','merchants'].includes(t.k)).map(navItem).join('')+
+    '<div class="navsec">Control</div>'+
+    TABS.filter(t=>['materials','checks','admin'].includes(t.k)).map(navItem).join('');}
+function navItem(t){
+  if(t.mdOnly&&!isMD())return '';
+  const n=t.count?t.count():0;
+  return '<div class="navi '+(TAB===t.k?'on':'')+'" onclick="go(\''+t.k+'\')">'+t.t+
+    (n?'<span class="c">'+n+'</span>':'')+'</div>';}
+function go(k){TAB=k;render();window.scrollTo(0,0);}
 
-function fillForms(){
-  const el=C.requests.filter(r=>['delivered','delivery_started','parsed'].includes(r.status));
-  document.getElementById('invRequest').innerHTML=el.map(r=>'<option value="'+r.id+'">'+esc(pName(r.project_id))+
-    ' · '+esc(stageOf(r)[0])+' · '+fmtDate(r.created_at)+'</option>').join('')||'<option value="">(nothing waiting)</option>';
-  document.getElementById('alaanRequest').innerHTML=C.requests.map(r=>'<option value="'+r.id+'">'+
-    esc(pName(r.project_id))+' · '+esc(stageOf(r)[0])+'</option>').join('');
-  document.getElementById('supplierList').innerHTML=C.suppliers.map(s=>'<option value="'+esc(s.name)+'">').join('');
-  if(!document.querySelector('#invItems .g3'))addInvItem();}
-function addInvItem(){
-  const d=document.createElement('div'); d.className='g3';
-  d.innerHTML='<input list="materialList" placeholder="material" class="i-n" />'+
-    '<input type="number" step="0.01" placeholder="qty" class="i-q" oninput="calcInv()" />'+
-    '<input type="number" step="0.01" placeholder="unit AED" class="i-p" oninput="calcInv()" />'+
-    '<button class="ghost sm" onclick="this.parentNode.remove();calcInv()">&times;</button>';
-  document.getElementById('invItems').appendChild(d);
-  if(!document.getElementById('materialList')){const dl=document.createElement('datalist');dl.id='materialList';document.body.appendChild(dl);}
-  document.getElementById('materialList').innerHTML=C.materials.map(m=>'<option value="'+esc(m.canonical_name)+'">').join('');}
-function calcInv(){let t=0;document.querySelectorAll('#invItems .g3').forEach(r=>
-  t+=(+r.querySelector('.i-q').value||0)*(+r.querySelector('.i-p').value||0));
-  document.getElementById('invTotal').textContent=t.toFixed(2);return t;}
-async function submitInvoice(){
-  const msg=document.getElementById('invMsg');
+function render(){
+  renderNav();
+  document.getElementById('siteFilter').innerHTML=
+    ['<div class="sf '+(SITE==='all'?'on':'')+'" onclick="setSite(\'all\')">All sites</div>']
+    .concat(C.projects.map(p=>{
+      const v=valOf(C.requests.filter(r=>r.project_id===p.id)),bud=+p.material_budget_aed||0;
+      const pct=bud?v/bud*100:0;
+      const b=pct>=100?'<span class="b b-red" style="margin-left:5px;">over</span>'
+        :pct>=80?'<span class="b b-amber" style="margin-left:5px;">'+Math.round(pct)+'%</span>':'';
+      return '<div class="sf '+(SITE===p.id?'on':'')+'" onclick="setSite(\''+p.id+'\')">'+esc(p.name)+b+'</div>';})).join('');
+  const T=TABS.find(t=>t.k===TAB)||TABS[0];
+  document.getElementById('pageTitle').textContent=T.t;
+  document.getElementById('pageSub').textContent=SITE==='all'?'all sites':pName(SITE);
+  ({overview:pgOverview,approvals:pgApprovals,requests:pgRequests,spend:pgSpend,materials:pgMaterials,
+    invoices:pgInvoices,checks:pgChecks,merchants:pgMerchants,admin:pgAdmin}[TAB]||pgOverview)();}
+function setSite(s){SITE=s;render();}
+const P=h=>document.getElementById('page').innerHTML=h;
+
+/* ---------- OVERVIEW ---------- */
+function pgOverview(){
+  const rs=C.requests.filter(inSite),per=rs.filter(inPeriod);
+  const invIds=new Set(C.invoices.map(v=>v.request_id));
+  const owed=rs.filter(r=>['delivered','delivery_started'].includes(r.status)&&!invIds.has(r.id));
+  const bud=SITE==='all'?C.projects.reduce((s,p)=>s+(+p.material_budget_aed||0),0):(+((C.projects.find(p=>p.id===SITE)||{}).material_budget_aed)||0);
+  const spent=valOf(rs),pct=bud?spent/bud*100:0;
+  const bb=!bud?'':pct>=100?'<span class="b b-red">over</span>':pct>=80?'<span class="b b-amber">'+Math.round(pct)+'%</span>':'<span class="b b-green">'+Math.round(pct)+'%</span>';
+  P('<div class="grid g5">'+
+      st('Ordered this month',aed(valOf(per)),per.length+' requests')+
+      st('Invoiced by Sadique',aed(invOf(per)),'same period')+
+      st('On site, not yet invoiced',aed(valOf(owed)),owed.length+' waiting')+
+      st('Budget',bud?aed(bud):'not set',bud?aed(bud-spent)+' left':'MD can set it',bb)+
+      st('Waiting for approval',pending().length,pending().length?'needs the MD':'all clear')+
+    '</div>'+
+    '<div class="grid g2">'+
+      card('Spend by site','Share of everything ordered.','<div class="pie"><canvas id="pie1"></canvas></div>')+
+      card('Spend by technician','Who is raising the value.','<div class="pie"><canvas id="pie2"></canvas></div>')+
+    '</div>'+
+    '<div class="grid g21">'+
+      card('What needs doing','Most urgent first.','<div id="acts"></div>')+
+      card('Budget use','Against each site.',budgetTable())+
+    '</div>');
+  drawPie('pie1',bySite(),[CL.teal,CL.t2,CL.t3,CL.sand,CL.s2]);
+  drawPie('pie2',byTech(),[CL.sand,CL.teal,CL.t2,CL.s2,CL.t3]);
+  document.getElementById('acts').innerHTML=actionsHtml();}
+function st(l,v,f,b){return '<div class="stat"><div class="l"><span>'+esc(l)+'</span>'+(b||'')+'</div><div class="v">'+v+'</div><div class="f">'+esc(f)+'</div></div>';}
+function card(t,s,body){return '<div class="card"><h3>'+esc(t)+'</h3><p class="s">'+esc(s)+'</p><div class="body">'+body+'</div></div>';}
+function bySite(){const m={};C.requests.filter(inPeriod).forEach(r=>{const k=pName(r.project_id);m[k]=(m[k]||0)+valOf([r]);});
+  return Object.entries(m).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);}
+function byTech(){const m={};C.requests.filter(inSite).filter(inPeriod).forEach(r=>{const k=uName(r.technician_id);m[k]=(m[k]||0)+valOf([r]);});
+  return Object.entries(m).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);}
+function drawPie(id,rows,cols){
+  const el=document.getElementById(id);if(!el)return;if(CH[id])CH[id].destroy();
+  if(!rows.length){el.parentNode.innerHTML='<div class="empty">Nothing in this period.</div>';return;}
+  CH[id]=new Chart(el,{type:'doughnut',
+    data:{labels:rows.map(r=>r[0]),datasets:[{data:rows.map(r=>r[1]),backgroundColor:cols,borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
+      plugins:{legend:{position:'right',labels:{boxWidth:9,boxHeight:9,font:{size:11},color:CL.ink,padding:9}},
+        tooltip:{callbacks:{label:c=>' '+c.label+': '+aed(c.raw)+' AED'}}}}});}
+function budgetTable(){
+  const rows=C.projects.filter(p=>SITE==='all'||p.id===SITE);
+  return '<table><thead><tr><th>Site</th><th class="n">Budget</th><th class="n">Committed</th><th style="width:110px;">Used</th></tr></thead><tbody>'+
+    rows.map(p=>{const bud=+p.material_budget_aed||0,sp=valOf(C.requests.filter(r=>r.project_id===p.id));
+      const pct=bud?Math.min(100,sp/bud*100):0,col=pct>=100?'var(--red)':pct>=80?'var(--amber)':'var(--teal)';
+      const cell=isMD()?'<a class="lnk" onclick="editBudget(\''+p.id+'\')">'+(bud?aed0(bud):'set')+'</a>':(bud?aed0(bud):'—');
+      return '<tr><td>'+esc(p.name)+'</td><td class="n">'+cell+'</td><td class="n">'+aed0(sp)+'</td>'+
+        '<td><div class="bar"><span style="width:'+pct+'%;background:'+col+';"></span></div></td></tr>';}).join('')+'</tbody></table>';}
+function actionsHtml(){
+  const a=[],now=new Date(),invIds=new Set(C.invoices.map(v=>v.request_id));
+  pending().filter(inSite).forEach(r=>a.push({p:1,tag:'Approve',c:'b-amber',
+    t:esc(pName(r.project_id))+' — '+esc(uName(r.technician_id))+' is waiting on approval',m:valOf([r]),go:"openReq('"+r.id+"')"}));
+  C.requests.filter(inSite).filter(r=>r.status==='delivered'&&!invIds.has(r.id)).forEach(r=>
+    a.push({p:2,tag:'No invoice',c:'b-amber',t:esc(pName(r.project_id))+' delivered, Sadique has not invoiced it',m:valOf([r]),go:"openReq('"+r.id+"')"}));
+  C.projects.filter(p=>SITE==='all'||p.id===SITE).forEach(p=>{const bud=+p.material_budget_aed||0;if(!bud)return;
+    const sp=valOf(C.requests.filter(r=>r.project_id===p.id)),pct=sp/bud*100;
+    if(pct>=100)a.push({p:1,tag:Math.round(pct)+'% budget',c:'b-red',t:esc(p.name)+' is over its material budget',m:sp-bud});
+    else if(pct>=80)a.push({p:2,tag:Math.round(pct)+'% budget',c:'b-amber',t:esc(p.name)+' is close to its budget',m:bud-sp});});
+  const d=dupRequests(),ip=invoiceProblems();
+  if(d.length)a.push({p:2,tag:d.length+' repeat',c:'b-amber',t:'Possible duplicate requests to review',m:null,go:"go('checks')"});
+  if(ip.length)a.push({p:1,tag:ip.length+' invoice',c:'b-red',t:'Invoice dates or duplicates need checking',m:null,go:"go('checks')"});
+  a.sort((x,y)=>x.p-y.p||((y.m||0)-(x.m||0)));
+  if(!a.length)return '<div class="empty">Nothing needs attention.</div>';
+  return '<table><tbody>'+a.slice(0,9).map(x=>'<tr '+(x.go?'class="cr" onclick="'+x.go+'"':'')+'>'+
+    '<td style="width:118px;"><span class="b '+x.c+'">'+esc(x.tag)+'</span></td><td>'+x.t+'</td>'+
+    '<td class="n" style="width:100px;font-weight:650;">'+(x.m?aed0(x.m):'')+'</td></tr>').join('')+'</tbody></table>';}
+
+/* ---------- APPROVALS ---------- */
+function pgApprovals(){
+  const rows=pending().filter(inSite);
+  if(readOnly()){P('<div class="card"><div class="body"><div class="ro">You have read-only access. '+
+    rows.length+' request'+(rows.length===1?' is':'s are')+' waiting for the Managing Director.</div>'+
+    (rows.length?approvalTable(rows,false):'')+'</div></div>');return;}
+  P(card('Waiting for approval','Click a row to see the site context before you decide.',
+    rows.length?approvalTable(rows,isMD()):'<div class="empty">Nothing waiting. All caught up.</div>'));}
+function approvalTable(rows,canAct){
+  return '<table><thead><tr><th>Site</th><th>Technician</th><th class="n">Materials</th><th class="n">Value AED</th>'+
+    '<th>Raised</th>'+(canAct?'<th></th>':'')+'</tr></thead><tbody>'+
+    rows.map(r=>'<tr class="cr" onclick="openReq(\''+r.id+'\')"><td><b>'+esc(pName(r.project_id))+'</b></td>'+
+      '<td>'+esc(uName(r.technician_id))+'</td><td class="n">'+(itemsOf(r).length||'—')+'</td>'+
+      '<td class="n">'+aed(valOf([r]))+'</td><td>'+fmt(r.created_at)+'</td>'+
+      (canAct?'<td class="n"><button class="ok sm" onclick="event.stopPropagation();approve(\''+r.id+'\')">Approve</button></td>':'')+
+      '</tr>').join('')+'</tbody></table>';}
+async function approve(id){
+  if(!isMD()){toast('Only the Managing Director approves requests');return;}
+  const {error}=await db.from('material_requests').update({approved_at:new Date().toISOString(),approved_by:ME.id}).eq('id',id);
+  if(error){toast('Could not approve: '+error.message);return;}
+  toast('Approved — now with Sadique for invoicing');closeOver();loadAll();}
+
+/* ---------- REQUESTS ---------- */
+function pgRequests(){
+  const rs=C.requests.filter(inSite);
+  P(card('All requests',rs.length+' on this site. Click a row for the full breakdown, photos and files.',
+    rs.length?'<table><thead><tr>'+(SITE==='all'?'<th>Site</th>':'')+
+      '<th>Technician</th><th>Stage</th><th class="n">Lines</th><th class="n">Ordered</th><th class="n">Invoiced</th><th>Raised</th></tr></thead><tbody>'+
+      rs.map(r=>{const [t,c]=stage(r);return '<tr class="cr" onclick="openReq(\''+r.id+'\')">'+
+        (SITE==='all'?'<td><b>'+esc(pName(r.project_id))+'</b></td>':'')+
+        '<td>'+esc(uName(r.technician_id))+'</td><td><span class="b '+c+'">'+esc(t)+'</span></td>'+
+        '<td class="n">'+(itemsOf(r).length||'—')+'</td><td class="n">'+aed0(valOf([r]))+'</td>'+
+        '<td class="n">'+(invOf([r])?aed0(invOf([r])):'—')+'</td><td>'+fmt(r.created_at)+'</td></tr>';}).join('')+'</tbody></table>'
+      :'<div class="empty">No requests for this site.</div>'));}
+
+/* ---------- SPEND ---------- */
+const PER=[['month','This month'],['m3','3 months'],['m6','6 months'],['all','Since we started']];
+const GRP=[['site','By site'],['tech','By technician'],['mat','By material']];
+function pgSpend(){
+  P('<div class="card"><h3>Spend explorer</h3><p class="s">Totals for any period, sliced three ways. Search a material to see what it has cost across every site.</p>'+
+    '<div class="body"><div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">'+
+      '<div><label>Period</label><div class="sitefilter" style="margin:0;">'+PER.map(([k,l])=>
+        '<div class="sf '+(PERIOD===k?'on':'')+'" onclick="setPer(\''+k+'\')">'+l+'</div>').join('')+'</div></div>'+
+      '<div><label>Break down</label><div class="sitefilter" style="margin:0;">'+GRP.map(([k,l])=>
+        '<div class="sf '+(GROUP===k?'on':'')+'" onclick="setGrp(\''+k+'\')">'+l+'</div>').join('')+'</div></div>'+
+      '<div style="flex:1;min-width:200px;"><label>Find a material</label>'+
+        '<input type="search" id="sq" placeholder="e.g. XLPE cable" oninput="drawSpend()" /></div>'+
+    '</div><div class="grid g21" style="margin:0;"><div id="spTable"></div><div class="pie" style="height:230px;"><canvas id="pie3"></canvas></div></div></div></div>');
+  drawSpend();}
+function setPer(k){PERIOD=k;render();}
+function setGrp(k){GROUP=k;render();}
+function spendRows(){
+  const q=(document.getElementById('sq')?.value||'').toLowerCase().trim();
+  const rs=C.requests.filter(inSite).filter(inPeriod),ids=new Set(rs.map(r=>r.id));
+  const rb={};C.requests.forEach(r=>rb[r.id]=r);const m={};
+  C.items.filter(i=>ids.has(i.request_id)).forEach(i=>{
+    if(q&&!String(i.raw_name||'').toLowerCase().includes(q))return;
+    const r=rb[i.request_id];if(!r)return;let k,l;
+    if(GROUP==='site'){k=r.project_id||'x';l=pName(r.project_id);}
+    else if(GROUP==='tech'){k=r.technician_id||'x';l=uName(r.technician_id);}
+    else{k=String(i.raw_name||'').trim().toLowerCase();l=(i.raw_name||'').trim();}
+    m[k]=m[k]||{l,v:0,q:0,n:0};m[k].v+=+i.expected_amount_aed||0;m[k].q+=+i.requested_qty||0;m[k].n++;});
+  return Object.values(m).sort((a,b)=>b.v-a.v);}
+function drawSpend(){
+  const rows=spendRows(),tot=rows.reduce((s,r)=>s+r.v,0);
+  const hdr=GROUP==='mat'?'Material':GROUP==='tech'?'Technician':'Site';
+  document.getElementById('spTable').innerHTML=!rows.length?'<div class="empty">Nothing in this period.</div>':
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;">'+
+      '<span style="font-size:11.5px;color:var(--muted);">'+esc((PER.find(p=>p[0]===PERIOD)||[])[1])+'</span>'+
+      '<span style="font-size:18px;font-weight:680;letter-spacing:-.02em;">'+aed(tot)+' <span style="font-size:11px;color:var(--muted);font-weight:500;">AED</span></span></div>'+
+    '<table><thead><tr><th>'+hdr+'</th><th class="n">Lines</th><th class="n">Qty</th><th class="n">AED</th><th class="n">%</th></tr></thead><tbody>'+
+    rows.slice(0,16).map(r=>'<tr><td><b>'+esc(r.l)+'</b></td><td class="n">'+r.n+'</td><td class="n">'+num(r.q)+'</td>'+
+      '<td class="n">'+aed(r.v)+'</td><td class="n">'+(tot?(r.v/tot*100).toFixed(0):0)+'</td></tr>').join('')+'</tbody></table>';
+  drawPie('pie3',rows.slice(0,6).map(r=>[r.l,r.v]),[CL.teal,CL.t2,CL.t3,CL.sand,CL.s2,CL.grey]);}
+
+/* ---------- MATERIALS ---------- */
+function stockRows(){
+  const rb={};C.requests.forEach(r=>rb[r.id]=r);
+  const dm={};C.ditems.forEach(d=>dm[d.request_item_id]=d);const m={};
+  C.items.forEach(i=>{const k=String(i.raw_name||'').trim().toLowerCase();if(!k)return;
+    const r=rb[i.request_id];if(!r)return;const d=dm[i.id],ord=+i.requested_qty||0,got=d?+d.received_qty||0:0;
+    m[k]=m[k]||{name:(i.raw_name||'').trim(),unit:i.unit||'',ordered:0,arrived:0,owed:0,spare:0,sites:{},value:0};
+    const x=m[k];x.ordered+=ord;x.arrived+=got;x.value+=+i.expected_amount_aed||0;
+    if(got>ord)x.spare+=got-ord;
+    if(d){if(got<ord)x.owed+=ord-got;}else if(['delivered','invoiced','closed'].includes(r.status))x.owed+=ord;
+    const p=pName(r.project_id);x.sites[p]=(x.sites[p]||0)+got;});
+  return Object.values(m).sort((a,b)=>b.value-a.value);}
+function pgMaterials(){
+  const rows=stockRows();
+  P(card('Materials across every site','Everything ever ordered, what arrived, and what the merchant still owes.',
+    rows.length?'<table><thead><tr><th>Material</th><th class="n">Ordered</th><th class="n">Arrived</th>'+
+      '<th class="n">Still owed</th><th>Where it went</th><th class="n">Value AED</th></tr></thead><tbody>'+
+      rows.slice(0,60).map(r=>{
+        const w=Object.entries(r.sites).filter(x=>x[1]>0).map(x=>esc(x[0])+' <span style="color:var(--faint)">'+num(x[1])+'</span>').join(' · ')||'<span style="color:var(--faint)">not delivered</span>';
+        return '<tr><td><b>'+esc(r.name)+'</b>'+(r.unit?' <span style="color:var(--faint)">('+esc(r.unit)+')</span>':'')+'</td>'+
+          '<td class="n">'+num(r.ordered)+'</td><td class="n">'+num(r.arrived)+'</td>'+
+          '<td class="n">'+(r.owed>0?'<span class="b b-red">'+num(r.owed)+'</span>':'—')+'</td>'+
+          '<td style="font-size:11.5px;">'+w+'</td><td class="n">'+aed(r.value)+'</td></tr>';}).join('')+'</tbody></table>'
+      :'<div class="empty">Nothing yet.</div>')+
+    (stockRows().some(r=>r.spare>0)?card('Over-delivered','Rare, but worth knowing about before buying again.',
+      '<table><thead><tr><th>Material</th><th class="n">Extra</th></tr></thead><tbody>'+
+      stockRows().filter(r=>r.spare>0).map(r=>'<tr><td>'+esc(r.name)+'</td><td class="n"><span class="b b-amber">'+num(r.spare)+'</span></td></tr>').join('')+
+      '</tbody></table>'):''));}
+
+/* ---------- INVOICES (Sadique) ---------- */
+function pgInvoices(){
+  if(readOnly()){
+    P(card('Invoices','Read only.', invoiceListTable()));return;}
+  const eligible=C.requests.filter(r=>r.approved_at&&['parsed','delivery_started','delivered'].includes(r.status));
+  P('<div class="grid g21">'+
+    '<div class="card"><h3>Raise an invoice</h3><p class="s">Match a merchant invoice to the request it belongs to. Sadique raises these; the MD only overrides.</p><div class="body">'+
+      '<div class="fld"><label>Request it belongs to</label><select id="ivReq">'+
+        (eligible.length?eligible.map(r=>'<option value="'+r.id+'">'+esc(pName(r.project_id))+' · '+esc(uName(r.technician_id))+' · '+day(r.created_at)+' · '+aed0(valOf([r]))+' AED</option>').join('')
+          :'<option value="">(nothing approved and waiting)</option>')+'</select></div>'+
+      '<div class="fld"><label>Merchant</label><input id="ivMerch" list="merchList" placeholder="who you bought from" /><datalist id="merchList">'+
+        C.merchants.map(s=>'<option value="'+esc(s.name)+'">').join('')+'</datalist></div>'+
+      '<div class="fld"><label>Invoice date</label><input id="ivDate" type="date" /></div>'+
+      '<div class="fld"><label>Invoice reference / file path</label><input id="ivRef" placeholder="invoices/xxx.pdf" /></div>'+
+      '<label>Lines</label><div id="ivItems"></div><button class="g sm" onclick="ivAdd()">+ Add line</button>'+
+      '<div style="margin:11px 0;">Total: <b id="ivTot">0.00</b> AED</div>'+
+      '<button onclick="saveInvoice()">Save invoice</button><p id="ivMsg" style="font-size:11.5px;color:var(--teal);"></p>'+
+    '</div></div>'+
+    card('Invoices raised','Newest first.',invoiceListTable())+'</div>');
+  const d=document.getElementById('ivDate');if(d)d.value=new Date().toISOString().slice(0,10);
+  ivAdd();}
+function invoiceListTable(){
+  const rows=[...C.invoices].sort((a,b)=>new Date(b.submitted_at)-new Date(a.submitted_at));
+  if(!rows.length)return '<div class="empty">No invoices yet.</div>';
+  const probs=invoiceProblems();
+  return '<table><thead><tr><th>Site</th><th>Merchant</th><th class="n">AED</th><th>Dated</th><th></th></tr></thead><tbody>'+
+    rows.map(v=>{const r=C.requests.find(x=>x.id===v.request_id);
+      const bad=probs.find(p=>p.v.id===v.id);
+      return '<tr class="cr" onclick="openReq(\''+(r?r.id:'')+'\')"><td>'+esc(r?pName(r.project_id):'—')+'</td>'+
+        '<td>'+esc((C.merchants.find(m=>m.id===v.supplier_id)||{}).name||'—')+'</td>'+
+        '<td class="n">'+aed(v.total_amount_aed)+'</td><td>'+day(v.submitted_at)+'</td>'+
+        '<td>'+(bad?'<span class="b b-red">'+esc(bad.t)+'</span>':'')+'</td></tr>';}).join('')+'</tbody></table>';}
+function ivAdd(){const d=document.createElement('div');d.className='row3';
+  d.innerHTML='<input list="matList" placeholder="material" class="v-n" /><input type="number" step="0.01" placeholder="qty" class="v-q" oninput="ivTot()" />'+
+    '<input type="number" step="0.01" placeholder="unit AED" class="v-p" oninput="ivTot()" />'+
+    '<button class="g sm" onclick="this.parentNode.remove();ivTot()">&times;</button>';
+  document.getElementById('ivItems').appendChild(d);
+  if(!document.getElementById('matList')){const dl=document.createElement('datalist');dl.id='matList';document.body.appendChild(dl);}
+  document.getElementById('matList').innerHTML=C.materials.map(m=>'<option value="'+esc(m.canonical_name)+'">').join('');}
+function ivTot(){let t=0;document.querySelectorAll('#ivItems .row3').forEach(r=>t+=(+r.querySelector('.v-q').value||0)*(+r.querySelector('.v-p').value||0));
+  document.getElementById('ivTot').textContent=t.toFixed(2);return t;}
+async function saveInvoice(){
+  const msg=document.getElementById('ivMsg');
   try{
-    const rid=document.getElementById('invRequest').value; if(!rid)throw new Error('pick a request');
-    const sn=document.getElementById('invSupplier').value.trim(); if(!sn)throw new Error('supplier name required');
-    let sup=C.suppliers.find(s=>s.name.toLowerCase()===sn.toLowerCase());
-    if(!sup){const r=await db.from('suppliers').insert({name:sn}).select().single();if(r.error)throw r.error;sup=r.data;}
+    if(readOnly())throw new Error('read-only access');
+    const rid=document.getElementById('ivReq').value;if(!rid)throw new Error('pick the request this belongs to');
+    const req=C.requests.find(r=>r.id===rid);
+    const dstr=document.getElementById('ivDate').value;if(!dstr)throw new Error('enter the invoice date');
+    const d=new Date(dstr+'T12:00:00');
+    if(req&&d<new Date(new Date(req.created_at).toDateString()))
+      throw new Error('invoice is dated before the request was raised ('+day(req.created_at)+')');
+    if(d>new Date(Date.now()+864e5))throw new Error('invoice cannot be dated in the future');
+    const mn=document.getElementById('ivMerch').value.trim();if(!mn)throw new Error('merchant name required');
+    let m=C.merchants.find(x=>x.name.toLowerCase()===mn.toLowerCase());
+    if(!m){const r=await db.from('suppliers').insert({name:mn}).select().single();if(r.error)throw r.error;m=r.data;}
     const lines=[];
-    for(const row of document.querySelectorAll('#invItems .g3')){
-      const nm=row.querySelector('.i-n').value.trim().toLowerCase();
-      const q=+row.querySelector('.i-q').value, p=+row.querySelector('.i-p').value;
-      if(!nm||!q||!p)continue;
-      let mat=C.materials.find(m=>m.canonical_name===nm);
-      if(!mat){const r=await db.from('materials').insert({canonical_name:nm}).select().single();if(r.error)throw r.error;mat=r.data;}
+    for(const row of document.querySelectorAll('#ivItems .row3')){
+      const n=row.querySelector('.v-n').value.trim().toLowerCase();
+      const q=+row.querySelector('.v-q').value,p=+row.querySelector('.v-p').value;
+      if(!n||!q||!p)continue;
+      let mat=C.materials.find(x=>x.canonical_name===n);
+      if(!mat){const r=await db.from('materials').insert({canonical_name:n}).select().single();if(r.error)throw r.error;mat=r.data;}
       lines.push({material_id:mat.id,qty:q,unit_price_aed:p});}
     if(!lines.length)throw new Error('add at least one complete line');
-    const inv=await db.from('invoices').insert({request_id:rid,supplier_id:sup.id,submitted_by:ME.id,
-      receipt_file_path:document.getElementById('invReceipt').value.trim()||'receipts/pending.pdf',
-      total_amount_aed:calcInv()}).select().single();
+    const total=ivTot();
+    const dup=C.invoices.find(v=>v.request_id===rid&&v.supplier_id===m.id&&Math.abs(+v.total_amount_aed-total)<0.01);
+    if(dup&&!confirm('An invoice for this request, merchant and amount already exists. Save anyway?'))return;
+    const inv=await db.from('invoices').insert({request_id:rid,supplier_id:m.id,submitted_by:ME.id,
+      receipt_file_path:document.getElementById('ivRef').value.trim()||'invoices/pending.pdf',
+      total_amount_aed:total,submitted_at:d.toISOString()}).select().single();
     if(inv.error)throw inv.error;
     const it=await db.from('invoice_items').insert(lines.map(l=>({...l,invoice_id:inv.data.id})));
     if(it.error)throw it.error;
-    msg.textContent='Invoice saved ✓';toast('Invoice saved');loadAll();
+    msg.textContent='Saved ✓';toast('Invoice matched to the request');loadAll();
   }catch(e){msg.textContent='Error: '+(e.message||e);}}
-async function submitAlaan(){
-  const msg=document.getElementById('alaanMsg');
-  const rid=document.getElementById('alaanRequest').value, amt=+document.getElementById('alaanAmount').value;
-  if(!rid||!amt){msg.textContent='Pick a request and enter an amount.';return;}
-  const {error}=await db.from('alaan_funding').insert({request_id:rid,amount_aed:amt,entered_by:ME.id});
-  msg.textContent=error?'Error: '+error.message:'Recorded ✓';
-  if(!error){toast('Card spend recorded');loadAll();}}
+
+/* ---------- CHECKS ---------- */
+function pgChecks(){
+  const d=dupRequests(),ip=invoiceProblems(),dp=dupPhotos();
+  P(card('Possible duplicate requests','Same material, same site, within 14 days. The MD decides whether it is genuine.',
+      d.length?'<table><thead><tr><th>Site</th><th>Material</th><th>Technician</th><th class="n">Days apart</th><th>First</th><th>Second</th><th class="n">AED</th></tr></thead><tbody>'+
+        d.map(x=>'<tr class="cr" onclick="openReq(\''+x.id+'\')"><td>'+esc(x.site)+'</td><td><b>'+esc(x.material)+'</b></td>'+
+          '<td>'+esc(x.tech)+'</td><td class="n"><span class="b b-amber">'+x.days+'</span></td>'+
+          '<td>'+day(x.firstDate)+'</td><td>'+day(x.secondDate)+'</td><td class="n">'+aed(x.value)+'</td></tr>').join('')+'</tbody></table>'
+        :'<div class="empty">No repeat requests found.</div>')+
+    card('Invoice problems','Dates that do not make sense, and possible duplicates.',
+      ip.length?'<table><thead><tr><th>Problem</th><th>Site</th><th class="n">AED</th><th>Detail</th></tr></thead><tbody>'+
+        ip.map(x=>{const r=C.requests.find(y=>y.id===x.v.request_id);
+          return '<tr><td><span class="b b-red">'+esc(x.t)+'</span></td><td>'+esc(r?pName(r.project_id):'—')+'</td>'+
+          '<td class="n">'+aed(x.v.total_amount_aed)+'</td><td style="font-size:11.5px;color:var(--muted);">'+esc(x.detail)+'</td></tr>';}).join('')+'</tbody></table>'
+        :'<div class="empty">All invoice dates look sensible.</div>')+
+    card('Possible duplicate photos','Same image sent more than once. The MD decides whether it is a genuine repeat.',
+      dp.length?'<table><thead><tr><th>Image reference</th><th class="n">Times sent</th></tr></thead><tbody>'+
+        dp.map(x=>'<tr><td style="font-family:ui-monospace,monospace;font-size:11px;">'+esc(String(x.key).slice(0,44))+'</td>'+
+          '<td class="n"><span class="b b-amber">'+x.n+'</span></td></tr>').join('')+'</tbody></table>'
+        :'<div class="empty">No duplicate photos found.</div>'+
+         '<div class="note"><b>Note.</b> This compares the WhatsApp media id of delivery photos. Timestamped photos are not being captured by the bot yet — that is a change to the WhatsApp flow, still to do.</div>'));}
+
+/* ---------- MERCHANTS ---------- */
+function pgMerchants(){
+  const by={};C.merchants.forEach(m=>by[m.id]={name:m.name,flagged:m.is_flagged,n:0,t:0});
+  C.invoices.forEach(v=>{const s=by[v.supplier_id];if(!s)return;s.n++;s.t+=+v.total_amount_aed||0;});
+  const rows=Object.values(by).filter(s=>s.n>0).sort((a,b)=>b.t-a.t),g=rows.reduce((s,r)=>s+r.t,0);
+  P('<div class="grid g21">'+
+    card('Merchants','Where the materials are actually bought from.',
+      rows.length?'<table><thead><tr><th>Merchant</th><th class="n">Invoices</th><th class="n">Total AED</th><th class="n">Average</th><th class="n">Share</th></tr></thead><tbody>'+
+        rows.map(s=>'<tr><td><b>'+esc(s.name)+'</b>'+(s.flagged?' <span class="b b-red">flagged</span>':'')+'</td>'+
+          '<td class="n">'+s.n+'</td><td class="n">'+aed(s.t)+'</td><td class="n">'+aed(s.t/s.n)+'</td>'+
+          '<td class="n">'+(g?(s.t/g*100).toFixed(0):0)+'%</td></tr>').join('')+'</tbody></table>'
+        :'<div class="empty">No invoices yet.</div>')+
+    card('Share of spend','',rows.length?'<div class="pie"><canvas id="pie4"></canvas></div>':'<div class="empty">—</div>')+'</div>');
+  if(rows.length)drawPie('pie4',rows.map(r=>[r.name,r.t]),[CL.teal,CL.t2,CL.t3,CL.sand,CL.s2,CL.grey]);}
+
+/* ---------- ADMIN ---------- */
+function pgAdmin(){
+  if(!isMD()){P('<div class="card"><div class="body"><div class="ro">Managing Director only.</div></div></div>');return;}
+  const locked=C.users.filter(u=>u.is_locked);
+  P(card('Locked out','Sadique loses portal access if an invoice is more than 3 days late. Unlock him here.',
+      locked.length?'<table><thead><tr><th>Name</th><th>Role</th><th>Locked since</th><th></th></tr></thead><tbody>'+
+        locked.map(u=>'<tr><td><b>'+esc(u.full_name)+'</b></td><td>'+esc(u.role.replace('_',' '))+'</td>'+
+          '<td>'+fmt(u.locked_at)+'</td><td class="n"><button class="sm" onclick="unlock(\''+u.id+'\')">Unlock</button></td></tr>').join('')+'</tbody></table>'
+        :'<div class="empty">Nobody is locked out.</div>')+
+    card('Technicians','Only these numbers can send request forms over WhatsApp.',
+      '<div class="grid g2" style="margin:0;"><div>'+
+        '<div class="fld"><label>Full name</label><input id="tName" placeholder="e.g. Rajesh Kumar" /></div>'+
+        '<div class="fld"><label>Phone (country code, no +)</label><input id="tPhone" placeholder="9715XXXXXXXX" /></div>'+
+        '<button onclick="addTech()">Add technician</button><p id="tMsg" style="font-size:11.5px;color:var(--teal);"></p></div>'+
+      '<div>'+(C.techs.length?'<table><thead><tr><th>Name</th><th>Phone</th><th>Status</th><th></th></tr></thead><tbody>'+
+        C.techs.map(u=>'<tr><td>'+esc(u.full_name)+'</td><td>'+esc(u.phone_e164)+'</td>'+
+          '<td>'+(u.is_active?'<span class="b b-green">active</span>':'<span class="b b-grey">off</span>')+'</td>'+
+          '<td class="n"><button class="g sm" onclick="togTech(\''+u.id+'\','+(!u.is_active)+')">'+(u.is_active?'Deactivate':'Activate')+'</button></td></tr>').join('')+
+        '</tbody></table>':'<div class="empty">None yet.</div>')+'</div></div>')+
+    card('Budgets','Set the material budget for each site.',budgetTable()));}
+async function unlock(id){const {error}=await db.from('users').update({is_locked:false,locked_at:null}).eq('id',id);
+  toast(error?'Failed':'Unlocked');if(!error)loadAll();}
+async function addTech(){
+  const m=document.getElementById('tMsg'),n=document.getElementById('tName').value.trim();
+  const p=document.getElementById('tPhone').value.trim().replace(/[^0-9]/g,'');
+  if(!n||!p){m.textContent='Enter a name and a phone number.';return;}
+  const {error}=await db.from('users').insert({full_name:n,role:'technician',phone_e164:p,is_active:true,created_by:ME.id});
+  if(error){m.textContent='Error: '+error.message;return;}
+  toast('Technician added');loadAll();}
+async function togTech(id,a){await db.from('users').update({is_active:a}).eq('id',id);toast(a?'Activated':'Deactivated');loadAll();}
+async function editBudget(id){
+  if(!isMD())return;
+  const p=C.projects.find(x=>x.id===id);if(!p)return;
+  const v=prompt('Material budget for '+p.name+' in AED:',p.material_budget_aed||'');
+  if(v===null)return;const n=Number(String(v).replace(/[^0-9.]/g,''));
+  if(!n||n<=0){toast('Enter a number');return;}
+  const {error}=await db.from('projects').update({material_budget_aed:n}).eq('id',id);
+  toast(error?'Failed':'Budget updated');if(!error)loadAll();}
+
+/* ---------- slide-over ---------- */
+function openOver(t,s,h){document.getElementById('ovT').innerHTML=t;document.getElementById('ovS').innerHTML=s||'';
+  document.getElementById('ovB').innerHTML=h;document.getElementById('over').classList.add('on');
+  document.getElementById('scrim').classList.add('on');}
+function closeOver(){document.getElementById('over').classList.remove('on');document.getElementById('scrim').classList.remove('on');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeOver();});
+
+async function fileLink(bucket,path,label){
+  if(!path)return '';
+  try{const {data}=await db.storage.from(bucket).createSignedUrl(path,300);
+    if(data&&data.signedUrl)return '<a class="lnk" href="'+data.signedUrl+'" target="_blank" download>'+label+'</a>';
+  }catch(e){}
+  return '<span style="color:var(--faint)">'+label+' (file not in storage)</span>';}
+
+async function openReq(id){
+  const r=C.requests.find(x=>x.id===id);if(!r)return;
+  const its=itemsOf(r),v=valOf([r]),b=invOf([r]),[t,c]=stage(r);
+  const dm={};C.ditems.forEach(d=>dm[d.request_item_id]=d);
+  const dels=C.deliveries.filter(d=>d.request_id===r.id);
+  const photos=C.photos.filter(p=>dels.some(d=>d.id===p.delivery_id));
+  const invs=C.invoices.filter(x=>x.request_id===r.id);
+  const projReqs=C.requests.filter(x=>x.project_id===r.project_id);
+  const techReqs=C.requests.filter(x=>x.technician_id===r.technician_id).filter(x=>x.id!==r.id).slice(0,3);
+  const bud=+((C.projects.find(p=>p.id===r.project_id)||{}).material_budget_aed)||0;
+  const spent=valOf(projReqs);
+  const rows=its.map(i=>{const d=dm[i.id],got=d?+d.received_qty:null;
+    const vr=d&&+d.qty_variance!==0?' <span class="b b-red">'+(+d.qty_variance>0?'+':'')+d.qty_variance+'</span>':'';
+    return '<tr><td class="n">'+(i.line_no??'—')+'</td><td>'+esc(i.raw_name)+'</td><td class="n">'+num(i.requested_qty)+'</td>'+
+      '<td class="n">'+(got==null?'<span style="color:var(--faint)">—</span>':num(got)+vr)+'</td>'+
+      '<td>'+esc(i.unit||'')+'</td><td class="n">'+aed(i.expected_amount_aed)+'</td></tr>';}).join('');
+  openOver(esc(pName(r.project_id)),
+    esc(uName(r.technician_id))+' · '+fmt(r.created_at)+' · <span class="b '+c+'">'+esc(t)+'</span>',
+    '<div class="grid g2" style="gap:10px;margin-bottom:14px;">'+
+      st('Ordered',aed(v),its.length+' lines')+st('Invoiced',b?aed(b):'—',invs.length+' invoice'+(invs.length===1?'':'s'))+'</div>'+
+    (isMD()&&!r.approved_at&&['parsed','parsing'].includes(r.status)
+      ? '<button class="ok" style="width:100%;margin-bottom:14px;" onclick="approve(\''+r.id+'\')">Approve — sends it to Sadique</button>' : '')+
+    (r.approved_at?'<div class="note" style="margin:0 0 12px;"><b>Approved</b> '+fmt(r.approved_at)+' by '+esc(uName(r.approved_by))+'</div>':'')+
+    '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:700;margin:14px 0 7px;">Site context</div>'+
+    '<table><tbody>'+
+      '<tr><td>Total ever ordered on '+esc(pName(r.project_id))+'</td><td class="n"><b>'+aed(spent)+'</b></td></tr>'+
+      '<tr><td>Budget</td><td class="n">'+(bud?aed(bud)+' · '+Math.round(spent/bud*100)+'% used':'not set')+'</td></tr>'+
+      '<tr><td>Requests on this site</td><td class="n">'+projReqs.length+'</td></tr>'+
+      '<tr><td><a class="lnk" onclick="closeOver();SITE=\''+r.project_id+'\';go(\'spend\')">Open this site in Spend explorer →</a></td><td></td></tr>'+
+      '<tr><td><a class="lnk" onclick="closeOver();SITE=\''+r.project_id+'\';go(\'requests\')">See every request on this site →</a></td><td></td></tr>'+
+    '</tbody></table>'+
+    (techReqs.length?'<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:700;margin:16px 0 7px;">'+
+      esc(uName(r.technician_id))+'&rsquo;s recent requests</div><table><tbody>'+
+      techReqs.map(x=>'<tr class="cr" onclick="openReq(\''+x.id+'\')"><td>'+esc(pName(x.project_id))+'</td>'+
+        '<td>'+day(x.created_at)+'</td><td class="n">'+aed0(valOf([x]))+'</td></tr>').join('')+'</tbody></table>':'')+
+    '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:700;margin:16px 0 7px;">Materials</div>'+
+    (its.length?'<table><thead><tr><th class="n">#</th><th>Material</th><th class="n">Ordered</th><th class="n">Received</th><th>Unit</th><th class="n">AED</th></tr></thead><tbody>'+rows+'</tbody></table>'
+      :'<div class="empty">Nothing read from this request yet.</div>')+
+    '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:700;margin:16px 0 7px;">Files</div>'+
+    '<div id="ovFiles" style="font-size:12px;line-height:2;">loading…</div>'+
+    (r.note?'<div class="note"><b>Note.</b> '+esc(r.note)+'</div>':''));
+  const parts=[];
+  parts.push(await fileLink('requests',r.raw_file_path,'Original request form (PDF)'));
+  for(const p of photos)parts.push(await fileLink('requests',p.storage_path,'Delivery photo · '+fmt(p.uploaded_at)));
+  for(const v2 of invs)parts.push(await fileLink('requests',v2.receipt_file_path,'Merchant invoice · '+aed(v2.total_amount_aed)+' AED'));
+  const el=document.getElementById('ovFiles');
+  if(el)el.innerHTML=parts.filter(Boolean).join('<br>')||'<span style="color:var(--faint)">No files attached yet.</span>';}
+
+/* ---------- quick log ---------- */
+function openQuickLog(){
+  if(readOnly())return;
+  openOver('Quick log','Attribute a purchase or a phoned-in request to a site and technician.',
+    '<div class="fld"><label>Site</label><select id="qSite">'+C.projects.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('')+'</select></div>'+
+    '<div class="fld"><label>Technician</label><select id="qTech">'+C.techs.map(t=>'<option value="'+t.id+'">'+esc(t.full_name)+'</option>').join('')+'</select></div>'+
+    '<div class="fld"><label>What is this?</label><select id="qKind">'+
+      '<option value="bought">Already bought</option><option value="request">A request phoned in</option></select></div>'+
+    '<div class="fld"><label>Materials</label><div id="qItems"></div><button class="g sm" onclick="qAdd()">+ Add line</button></div>'+
+    '<div class="fld"><label>Note</label><textarea id="qNote" rows="2" placeholder="e.g. bought from Al Aweer, cash"></textarea></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0;">'+
+      '<span>Total: <b id="qTot">0.00</b> AED</span><button onclick="saveQuick()">Save</button></div>'+
+    '<p id="qMsg" style="font-size:11.5px;color:var(--teal);"></p>');
+  qAdd();}
+function qAdd(){const d=document.createElement('div');d.className='row3';
+  d.innerHTML='<input placeholder="material" class="q-n" /><input type="number" step="0.01" placeholder="qty" class="q-q" />'+
+    '<input type="number" step="0.01" placeholder="AED" class="q-v" oninput="qTot()" />'+
+    '<button class="g sm" onclick="this.parentNode.remove();qTot()">&times;</button>';
+  document.getElementById('qItems').appendChild(d);}
+function qTot(){let t=0;document.querySelectorAll('#qItems .row3').forEach(r=>t+=(+r.querySelector('.q-v').value||0));
+  const e=document.getElementById('qTot');if(e)e.textContent=t.toFixed(2);return t;}
+async function saveQuick(){
+  const m=document.getElementById('qMsg');
+  try{
+    const s=document.getElementById('qSite').value,t=document.getElementById('qTech').value;
+    const k=document.getElementById('qKind').value,n=document.getElementById('qNote').value.trim();
+    const lines=[];let i=0;
+    document.querySelectorAll('#qItems .row3').forEach(r=>{const nm=r.querySelector('.q-n').value.trim();
+      if(!nm)return;i++;lines.push({raw_name:nm,requested_qty:+r.querySelector('.q-q').value||null,
+        expected_amount_aed:+r.querySelector('.q-v').value||null,unit:'',line_no:i});});
+    if(!lines.length)throw new Error('add at least one material');
+    const req=await db.from('material_requests').insert({project_id:s,technician_id:t,
+      status:k==='bought'?'delivered':'parsed',logged_manually:true,note:n||null,
+      approved_at:k==='bought'?new Date().toISOString():null,approved_by:k==='bought'?ME.id:null}).select().single();
+    if(req.error)throw req.error;
+    const ins=await db.from('request_items').insert(lines.map(l=>({...l,request_id:req.data.id})));
+    if(ins.error)throw ins.error;
+    m.textContent='Saved ✓';toast('Logged against '+pName(s));setTimeout(()=>{closeOver();loadAll();},600);
+  }catch(e){m.textContent='Error: '+(e.message||e);}}
 
 boot();
 </script>
