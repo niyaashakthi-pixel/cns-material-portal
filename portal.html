@@ -813,7 +813,13 @@ function pgAdmin(){
     card('Budgets','Set the material budget for each site.',budgetTable()));}
 async function unlock(id){
   const ok=await saveRow(db.from('users').update({is_locked:false,locked_at:null}).eq('id',id),'this lockout');
-  if(ok){toast('Unlocked');loadAll();}}
+  if(!ok)return;
+  /* Stamp the open overdue timers as overridden. Two reasons: the enforcer then
+     leaves him alone instead of re-locking within the half hour, and it is the
+     flag that makes him write the explanation he still owes. */
+  await db.from('lockout_timers').update({overridden_by:ME.id,overridden_at:new Date().toISOString()})
+    .eq('manager_id',id).is('satisfied_at',null).is('overridden_at',null);
+  toast('Unlocked — he must now explain the delay');loadAll();}
 async function addTech(){
   const m=document.getElementById('tMsg'),n=document.getElementById('tName').value.trim();
   const p=document.getElementById('tPhone').value.trim().replace(/[^0-9]/g,'');
