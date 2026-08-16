@@ -1001,9 +1001,15 @@ async function openReq(id){
     /* taken_at is the camera's own clock. If it predates the request, the photo
        cannot be of this delivery — that is the reused-photo case. */
     const stale=p.taken_at&&new Date(p.taken_at)<new Date(r.created_at);
-    const when=p.taken_at?('taken '+fmt(p.taken_at)):'no camera timestamp';
-    parts.push(await fileCard('delivery-photos',p.storage_path,
-      'Delivery photo'+(stale?' — taken before the request':'')+(!p.taken_at?' — unverified':''),
+    /* WhatsApp strips EXIF, so photos that arrive that way have no machine-readable
+       date. The technicians burn the time into the picture instead, so the honest
+       instruction is "read it off the image" rather than calling it unverified. */
+    const viaWA=p.taken_at_source==='whatsapp'&&!p.taken_at;
+    const when=p.taken_at?('taken '+fmt(p.taken_at))
+      :viaWA?'sent on WhatsApp — check the time shown on the photo'
+      :'no camera timestamp';
+    const tag=stale?' — taken before the request':(!p.taken_at&&!viaWA)?' — unverified':'';
+    parts.push(await fileCard('delivery-photos',p.storage_path,'Delivery photo'+tag,
       when+' · uploaded '+fmt(p.uploaded_at)));}
   for(const v2 of invs)parts.push(await fileCard('receipts',v2.receipt_file_path,'Merchant invoice',
     aed(v2.total_amount_aed)+' AED · '+day(v2.submitted_at)));
