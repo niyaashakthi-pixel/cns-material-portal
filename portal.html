@@ -345,6 +345,11 @@ function render(){
     document.getElementById('pageTitle').textContent='One thing first';
     document.getElementById('pageSub').textContent='';
     P(explanationGate());return;}
+  /* Locked: only the Invoices tab stays reachable, so he can dig himself out. */
+  if(isOps()&&ME.is_locked&&TAB!=='invoices'){
+    document.getElementById('pageTitle').textContent='Locked out';
+    document.getElementById('pageSub').textContent='';
+    P(lockedScreen());return;}
   const T=TABS.find(t=>t.k===TAB)||TABS[0];
   document.getElementById('pageTitle').textContent=T.t;
   document.getElementById('pageSub').textContent=SITE==='all'?'all sites':pName(SITE);
@@ -539,7 +544,7 @@ function pgInvoices(){
   if(readOnly()){
     P(card('Invoices','Read only.', invoiceListTable()));return;}
   const eligible=C.requests.filter(r=>r.approved_at&&['parsed','delivery_started','delivered'].includes(r.status));
-  P((isOps()?myTimersCard():'')+'<div class="grid g21">'+
+  P((isOps()&&ME.is_locked?lockedScreen():isOps()?myTimersCard():'')+'<div class="grid g21">'+
     '<div class="card"><h3>Raise an invoice</h3><p class="s">Match a merchant invoice to the request it belongs to. Sadique raises these; the MD only overrides.</p><div class="body">'+
       '<div class="fld"><label>Request it belongs to</label><select id="ivReq">'+
         (eligible.length?eligible.map(r=>'<option value="'+r.id+'">'+esc(pName(r.project_id))+' · '+esc(uName(r.technician_id))+' · '+day(r.created_at)+' · '+aed0(valOf([r]))+' AED</option>').join('')
@@ -736,6 +741,29 @@ async function submitExplanation(id){
   const ok=await saveRow(db.from('lockout_timers').update({late_explanation:v,
     late_explanation_at:new Date().toISOString()}).eq('id',id),'this explanation');
   if(ok){toast('Recorded — thank you');loadAll();}}
+
+/* Being locked out has to mean something, but locking him out completely would
+   trap him: the way out is to file the invoice, which needs the portal. So a
+   locked manager keeps exactly two abilities — file the overdue invoice, or ask
+   for more time — and loses everything else. */
+function lockedScreen(){
+  return '<div class="card"><h3>Your access is limited</h3>'+
+    '<p class="s">An invoice is past its deadline, so the rest of the portal is closed to you. '+
+    'File it below, or ask '+esc((C.users.find(u=>u.role==='master_admin')||{}).full_name||'the MD')+' for more time.</p>'+
+    '<div class="body">'+
+      (myTimers().length?'<table><thead><tr><th>Site</th><th>Was due</th><th>Overdue by</th><th></th></tr></thead><tbody>'+
+        myTimers().map(t=>{const due=new Date(t.extension_until||t.deadline_at);
+          const days=Math.max(0,Math.floor((Date.now()-due)/864e5));
+          const btn=(!t.extension_requested_at)
+            ?'<button class="g sm" onclick="askExtension(\''+t.id+'\')">Ask for more time</button>'
+            :t.extension_granted===false?'<span class="b b-red">refused</span>'
+            :'<span class="b b-amber">request sent</span>';
+          return '<tr><td><b>'+esc(siteOfTimer(t))+'</b></td><td>'+fmt(due)+'</td>'+
+            '<td><span class="b b-red">'+days+' day'+(days===1?'':'s')+'</span></td>'+
+            '<td class="n">'+btn+'</td></tr>';}).join('')+'</tbody></table>'
+        :'<div class="empty">Nothing outstanding — reload the page.</div>')+
+    '</div></div>'+
+    (TAB==='invoices'?'':'<div class="note" style="margin-top:14px;">Use the <b>Invoices</b> tab to file it.</div>');}
 
 function myTimersCard(){
   const rows=myTimers();
