@@ -275,15 +275,31 @@ const pending=()=>C.requests.filter(r=>!r.approved_at&&['parsed','parsing'].incl
 /* ---------- checks ---------- */
 function dupRequests(){
   const out=[],seen={},rb={};C.requests.forEach(r=>rb[r.id]=r);
+  /* Each result is ONE material that appears on TWO requests for the same site.
+     Rows are independent of each other — two rows never mean "these two
+     materials are the same thing". Once the MD has ruled on a pair it drops out. */
   C.items.forEach(i=>{const r=rb[i.request_id];if(!r)return;
     const k=(r.project_id||'')+'|'+String(i.raw_name||'').trim().toLowerCase();(seen[k]=seen[k]||[]).push({r,i});});
   Object.values(seen).forEach(l=>{if(l.length<2)return;
     l.sort((a,b)=>new Date(a.r.created_at)-new Date(b.r.created_at));
     for(let n=1;n<l.length;n++){const g=(new Date(l[n].r.created_at)-new Date(l[n-1].r.created_at))/864e5;
-      if(g<=14)out.push({site:pName(l[n].r.project_id),material:l[n].i.raw_name,days:Math.round(g),
+      if(g<=14&&!l[n].r.dup_verdict)out.push({site:pName(l[n].r.project_id),material:l[n].i.raw_name,days:Math.round(g),
         tech:uName(l[n].r.technician_id),value:+l[n].i.expected_amount_aed||0,id:l[n].r.id,
+        firstId:l[n-1].r.id,
         firstDate:l[n-1].r.created_at,secondDate:l[n].r.created_at});}});
   return out;}
+
+async function ruleDuplicate(id,verdict){
+  if(!isMD())return;
+  let note=null;
+  if(verdict==='duplicate'){
+    note=prompt('Optional note — what did you do about it?');
+    if(note===null)return;}
+  const ok=await saveRow(db.from('material_requests').update({dup_verdict:verdict,
+    dup_reviewed_at:new Date().toISOString(),dup_reviewed_by:ME.id,dup_note:note||null})
+    .eq('id',id),'this decision');
+  if(ok){toast(verdict==='genuine'?'Marked genuine — flag cleared':'Recorded as a duplicate');loadAll();}}
+
 function invoiceProblems(){
   const out=[],rb={};C.requests.forEach(r=>rb[r.id]=r);
   const bySig={};
@@ -641,6 +657,83 @@ async function saveInvoice(){
     msg.textContent='Saved ✓';toast('Invoice matched to the request');loadAll();
   }catch(e){msg.textContent='Error: '+(e.message||e);}}
 
+/* ---------- REQUEST vs INVOICE ----------
+   The question this answers: did Sadique actually buy what the technician asked
+   for, at a sensible price? Line by line, matched on material name.
+   Four things can go wrong and each is called out separately:
+     - asked for, never bought
+     - bought, never asked for
+     - wrong quantity
+     - right quantity, but it cost more than the technician estimated          */
+const normName=s=>String(s||'').trim().toLowerCase();
+function reconcile(reqId){
+  const r=C.requests.find(x=>x.id===reqId);if(!r)return null;
+  const asked={};
+  itemsOf(r).forEach(i=>{const k=normName(i.raw_name);if(!k)return;
+    asked[k]=asked[k]||{name:i.raw_name,qty:0,aed:0};
+    asked[k].qty+=+i.requested_qty||0; asked[k].aed+=+i.expected_amount_aed||0;});
+
+  const invs=C.invoices.filter(v=>v.request_id===reqId);
+  const invIds=new Set(invs.map(v=>v.id));
+  const matName=id=>{const m=(C.materials||[]).find(x=>x.id===id);return m?m.canonical_name:'';};
+  const bought={};
+  (C.iitems||[]).filter(ii=>invIds.has(ii.invoice_id)).forEach(ii=>{
+    const k=normName(matName(ii.material_id));if(!k)return;
+    bought[k]=bought[k]||{name:matName(ii.material_id),qty:0,aed:0};
+    bought[k].qty+=+ii.qty||0; bought[k].aed+=(+ii.qty||0)*(+ii.unit_price_aed||0);});
+
+  const keys=[...new Set([...Object.keys(asked),...Object.keys(bought)])].sort();
+  const rows=keys.map(k=>{
+    const a=asked[k],b=bought[k];
+    let flag=null;
+    if(a&&!b)flag='not bought';
+    else if(!a&&b)flag='not requested';
+    else if(Math.abs(a.qty-b.qty)>0.001)flag=b.qty<a.qty?'short':'over';
+    else if(b.aed>a.aed*1.1&&a.aed>0)flag='costlier';
+    return {name:(a||b).name,askedQty:a?a.qty:null,askedAed:a?a.aed:null,
+            gotQty:b?b.qty:null,gotAed:b?b.aed:null,
+            diff:(b?b.aed:0)-(a?a.aed:0),flag};});
+  const totalAsked=Object.values(asked).reduce((s,x)=>s+x.aed,0);
+  const totalGot=invs.reduce((s,v)=>s+(+v.total_amount_aed||0),0);
+  return {rows,totalAsked,totalGot,invoiceCount:invs.length,
+          hasInvoice:invs.length>0,problems:rows.filter(x=>x.flag).length};}
+
+const FLAG_STYLE={'not bought':['Never bought','b-red'],'not requested':['Not on the request','b-red'],
+  'short':['Short','b-amber'],'over':['Extra','b-amber'],'costlier':['Cost more','b-amber']};
+function reconcileCard(reqId){
+  const rec=reconcile(reqId);
+  if(!rec)return '';
+  if(!rec.hasInvoice)
+    return '<div class="note" style="margin-top:6px;">No invoice filed yet, so there is nothing to compare.</div>';
+  const gap=rec.totalGot-rec.totalAsked;
+  const gapPct=rec.totalAsked?Math.round(gap/rec.totalAsked*100):0;
+  const badge=Math.abs(gapPct)<=5?'b-green':Math.abs(gapPct)<=15?'b-amber':'b-red';
+  return '<table><thead><tr><th>Material</th><th class="n">Asked</th><th class="n">Bought</th>'+
+    '<th class="n">Asked AED</th><th class="n">Paid AED</th><th class="n">Diff</th><th></th></tr></thead><tbody>'+
+    rec.rows.map(x=>{const f=FLAG_STYLE[x.flag];
+      return '<tr><td><b>'+esc(x.name)+'</b></td>'+
+        '<td class="n">'+(x.askedQty==null?'—':num(x.askedQty))+'</td>'+
+        '<td class="n">'+(x.gotQty==null?'—':num(x.gotQty))+'</td>'+
+        '<td class="n">'+(x.askedAed==null?'—':aed(x.askedAed))+'</td>'+
+        '<td class="n">'+(x.gotAed==null?'—':aed(x.gotAed))+'</td>'+
+        '<td class="n">'+(x.diff?(x.diff>0?'+':'')+aed(x.diff):'—')+'</td>'+
+        '<td>'+(f?'<span class="b '+f[1]+'">'+f[0]+'</span>':'<span class="b b-green">matches</span>')+'</td></tr>';
+    }).join('')+
+    '<tr><td><b>Total</b></td><td class="n"></td><td class="n"></td>'+
+    '<td class="n"><b>'+aed(rec.totalAsked)+'</b></td><td class="n"><b>'+aed(rec.totalGot)+'</b></td>'+
+    '<td class="n"><b>'+(gap>0?'+':'')+aed(gap)+'</b></td>'+
+    '<td><span class="b '+badge+'">'+(gapPct>0?'+':'')+gapPct+'%</span></td></tr>'+
+    '</tbody></table>';}
+
+/* every request where the money does not line up, in one place */
+function mismatchRows(){
+  return C.requests.filter(inSite).map(r=>({r,rec:reconcile(r.id)}))
+    .filter(x=>x.rec&&x.rec.hasInvoice&&x.rec.problems>0)
+    .map(x=>({id:x.r.id,site:pName(x.r.project_id),tech:uName(x.r.technician_id),
+      asked:x.rec.totalAsked,got:x.rec.totalGot,problems:x.rec.problems,
+      worst:x.rec.rows.filter(y=>y.flag).slice(0,2).map(y=>y.name+' ('+FLAG_STYLE[y.flag][0].toLowerCase()+')').join(', ')}))
+    .sort((a,b)=>Math.abs(b.got-b.asked)-Math.abs(a.got-a.asked));}
+
 /* ---------- CHECKS ---------- */
 /* The database raises these itself from triggers — short deliveries, prices well
    above what the same material normally costs, a manager who has been locked out.
@@ -675,12 +768,29 @@ async function resolveAlert(id){
 
 function pgChecks(){
   const d=dupRequests(),ip=invoiceProblems(),dp=dupPhotos();
-  P(alertsCard()+card('Possible duplicate requests','Same material, same site, within 14 days. The MD decides whether it is genuine.',
-      d.length?'<table><thead><tr><th>Site</th><th>Material</th><th>Technician</th><th class="n">Days apart</th><th>First</th><th>Second</th><th class="n">AED</th></tr></thead><tbody>'+
-        d.map(x=>'<tr class="cr" onclick="openReq(\''+x.id+'\')"><td>'+esc(x.site)+'</td><td><b>'+esc(x.material)+'</b></td>'+
-          '<td>'+esc(x.tech)+'</td><td class="n"><span class="b b-amber">'+x.days+'</span></td>'+
-          '<td>'+day(x.firstDate)+'</td><td>'+day(x.secondDate)+'</td><td class="n">'+aed(x.value)+'</td></tr>').join('')+'</tbody></table>'
-        :'<div class="empty">No repeat requests found.</div>')+
+  const mm=mismatchRows();
+  P(alertsCard()+
+    card('Request vs invoice','Did Sadique buy what was actually asked for, at the price expected? Only requests where something does not line up appear here.',
+      mm.length?'<table><thead><tr><th>Site</th><th>Technician</th><th class="n">Asked AED</th><th class="n">Paid AED</th><th class="n">Difference</th><th>What is off</th></tr></thead><tbody>'+
+        mm.map(x=>{const g=x.got-x.asked;
+          return '<tr class="cr" onclick="openReq(\''+x.id+'\')"><td><b>'+esc(x.site)+'</b></td><td>'+esc(x.tech)+'</td>'+
+          '<td class="n">'+aed(x.asked)+'</td><td class="n">'+aed(x.got)+'</td>'+
+          '<td class="n"><span class="b '+(Math.abs(g)>x.asked*0.15?'b-red':'b-amber')+'">'+(g>0?'+':'')+aed(g)+'</span></td>'+
+          '<td style="font-size:11.5px;color:var(--muted);">'+esc(x.worst)+'</td></tr>';}).join('')+'</tbody></table>'
+        :'<div class="empty">Every invoiced request matches its materials and its money.</div>')+
+    card('Possible duplicate requests','One material asked for twice on the same site within 14 days. Each row is a single material on two different requests — rows are unrelated to each other.',
+      d.length?'<table><thead><tr><th>Site</th><th>Material asked for twice</th><th>Technician</th><th>First asked</th><th>Asked again</th><th class="n">Days apart</th><th class="n">AED</th>'+
+        (isMD()?'<th></th>':'')+'</tr></thead><tbody>'+
+        d.map(x=>'<tr><td>'+esc(x.site)+'</td><td><b>'+esc(x.material)+'</b></td>'+
+          '<td>'+esc(x.tech)+'</td>'+
+          '<td><a class="lnk" onclick="openReq(\''+x.firstId+'\')">'+day(x.firstDate)+'</a></td>'+
+          '<td><a class="lnk" onclick="openReq(\''+x.id+'\')">'+day(x.secondDate)+'</a></td>'+
+          '<td class="n"><span class="b b-amber">'+x.days+'</span></td><td class="n">'+aed(x.value)+'</td>'+
+          (isMD()?'<td class="n" style="white-space:nowrap;">'+
+            '<button class="ok sm" onclick="ruleDuplicate(\''+x.id+'\',\'genuine\')">Genuine</button> '+
+            '<button class="g sm" onclick="ruleDuplicate(\''+x.id+'\',\'duplicate\')">Duplicate</button></td>':'')+
+          '</tr>').join('')+'</tbody></table>'
+        :'<div class="empty">No repeat requests waiting to be checked.</div>')+
     card('Invoice problems','Dates that do not make sense, and possible duplicates.',
       ip.length?'<table><thead><tr><th>Problem</th><th>Site</th><th class="n">AED</th><th>Detail</th></tr></thead><tbody>'+
         ip.map(x=>{const r=C.requests.find(y=>y.id===x.v.request_id);
@@ -1019,6 +1129,11 @@ async function openReq(id){
     '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:700;margin:16px 0 7px;">Materials</div>'+
     (its.length?'<table><thead><tr><th class="n">#</th><th>Material</th><th class="n">Ordered</th><th class="n">Received</th><th>Unit</th><th class="n">AED</th></tr></thead><tbody>'+rows+'</tbody></table>'
       :'<div class="empty">Nothing read from this request yet.</div>')+
+    '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:700;margin:16px 0 7px;">Requested vs actually bought</div>'+
+    reconcileCard(r.id)+
+    (r.dup_verdict?'<div class="note"><b>Duplicate check.</b> Ruled '+esc(r.dup_verdict)+
+      ' by '+esc(uName(r.dup_reviewed_by))+' on '+day(r.dup_reviewed_at)+
+      (r.dup_note?' — '+esc(r.dup_note):'')+'</div>':'')+
     '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:700;margin:16px 0 7px;">Files</div>'+
     '<div id="ovFiles" style="font-size:12px;line-height:2;">loading…</div>'+
     (r.note?'<div class="note"><b>Note.</b> '+esc(r.note)+'</div>':''));
